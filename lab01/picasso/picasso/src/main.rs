@@ -7,28 +7,28 @@ fn main() {
     // dbg!(&args);
 
     for filepath in &args[1..] { // using the concept of borrowing here
-        // let filepath = &std::env::args()
-        //     .nth(1)
-        //     .expect("missing required command-line argument: <filepath>");
-
         println!("===== {filepath} =====");
     
         let img = match bmp::open(filepath) {
             Ok(img) => img,
             Err(e) => {
-                eprintln!("Error! BmpError {:?}", e);
+                println!("Error! {:?}", e);
                 continue
             }
         };
 
         for (x, y) in img.coordinates() {
             let pix = img.get_pixel(x, y);
-            match pix {
-                consts::RED => print!("R "),
-                consts::LIME => print!("G "),
-                consts::BLUE => print!("B "),
-                consts::WHITE => print!("W "),
-                e => panic!("{}", e)
+            if pix == consts::RED {
+                print!("R ");
+            } else if pix == consts::LIME {
+                print!("G ");
+            } else if pix == consts::BLUE {
+                print!("B ");
+            } else if pix == consts::WHITE {
+                print!("W ");
+            } else {
+                print!("? ");
             }
             if x == img.get_width() - 1 {
                 println!();
