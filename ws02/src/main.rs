@@ -92,6 +92,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 pub struct Solution {
     // TODO: You can put whatever state you require for each query here.
+    records: Vec<CSVRecord>,
 }
 
 pub fn new_solution() -> Result<Solution, Box<dyn Error>> {
@@ -103,27 +104,67 @@ pub fn new_solution() -> Result<Solution, Box<dyn Error>> {
         .deserialize()
         .collect::<Result<_, _>>()?;
 
-    todo!()
+    Ok(Solution { records }) // if you name the struct something else: Ok(Solution { STRUCT_NAME: records })
 }
 
 /// What is the north-most station?
 pub fn find_north_most_station(solution: &Solution) -> Option<String> {
-    todo!()
+    let Some(mut north_most) = &solution.records.get(0) else {
+        return None;
+    };
+
+    for record in solution.records.iter().skip(1) {
+        if record.latitude > north_most.latitude {
+            north_most = record;
+        }
+    }
+
+    Some(north_most.station.clone())
 }
 
 /// What is the south-most station?
 pub fn find_south_most_station(solution: &Solution) -> Option<String> {
-    todo!()
+    solution
+        .records
+        .iter()
+        .reduce(|acc, record| {
+            if record.latitude < acc.latitude {
+                record
+            } else {
+                acc
+            }
+        })
+        .map(|record| record.station.clone())
 }
 
 /// What is the east-most station?
 pub fn find_east_most_station(solution: &Solution) -> Option<String> {
-    todo!()
+    solution
+        .records
+        .iter()
+        .reduce(|acc, record| {
+            if record.longitude > acc.longitude {
+                record
+            } else {
+                acc
+            }
+        })
+        .map(|record| record.station.clone())
 }
 
 /// What is the west-most station?
 pub fn find_west_most_station(solution: &Solution) -> Option<String> {
-    todo!()
+    solution
+        .records
+        .iter()
+        .reduce(|acc, record| {
+            if record.longitude < acc.longitude {
+                record
+            } else {
+                acc
+            }
+        })
+        .map(|record| record.station.clone())
 }
 
 /// Return the names of the most and least used (total entries + exits) stations on the NSW network at each time of day, in total over all of the years.
