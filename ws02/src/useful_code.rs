@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::{CSVRecord, TimeOfDay};
+
 #[derive(Debug)]
 struct Record {
     time_period: String,

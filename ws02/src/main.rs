@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 mod tests;
+mod useful_code;
 
 use std::error::Error;
 use std::path::Path;
@@ -172,7 +173,59 @@ pub fn most_least_used_stations(
     solution: &Solution,
     time_of_day: TimeOfDay,
 ) -> Option<(String, String)> {
-    todo!()
+    // look at which columns based on time of day (eg col2 + 3)
+    // add total entries + exits
+
+    // null check
+    if solution.records.is_empty() {
+        return None;
+    }
+
+    //
+    let mut stations = std::collections::HashMap::new();
+
+    for record in &solution.records {
+        // Get entries and exits based on time of day
+        let (entries, exits) = match time_of_day {
+            TimeOfDay::Morning => (record.entries_morning, record.exits_morning),
+            TimeOfDay::Midday => (record.entries_midday, record.exits_midday),
+            TimeOfDay::Evening => (record.entries_evening, record.exits_evening),
+            TimeOfDay::Midnight => (record.entries_midnight, record.exits_midnight),
+            TimeOfDay::Total => (record.entries_total, record.exits_total),
+        };
+
+        if entries == None || exits == None {
+            continue;
+        }
+
+        let total = entries.unwrap() + exits.unwrap();
+
+        //
+        stations
+            .entry(record.station.clone())
+            .and_modify(|count| *count += total)
+            .or_insert(total);
+    }
+
+    if stations.is_empty() {
+        return None;
+    }
+
+    // Find station with maximum usage
+    let most_used = stations
+        .iter()
+        .max_by_key(|&(_, total)| total)
+        .map(|(station, _)| station.clone())
+        .unwrap();
+
+    // Find station with minimum usage
+    let least_used = stations
+        .iter()
+        .min_by_key(|&(_, total)| total)
+        .map(|(station, _)| station.clone())
+        .unwrap();
+
+    Some((least_used, most_used))
 }
 
 // TODO: if you think the Vec return type is inefficient/unsuitable, ask your tutor about more flexible alternatives (hint: iterators).
