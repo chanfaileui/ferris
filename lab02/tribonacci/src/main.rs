@@ -36,7 +36,6 @@ fn compute_tribonacci(
     println!("Values: {:?}", values);
 
     let tsum: u128 = values.iter().sum();
-    println!("{}", tsum);
-    // // TODO: complete this function!
+    println!("\nSum: {}", tsum);
     Ok(())
 }
