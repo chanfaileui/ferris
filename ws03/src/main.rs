@@ -72,7 +72,26 @@ impl Buffer {
 /// implements "Controller", which defines how
 /// something should interact with the terminal.
 struct BufferEditor {
-    buffer: HashMap<String, Buffer>, // use string as the key to the buffer
+    buffer: Buffer,
+    // name: String,
+    // buffers: HashMap<String, Buffer>
+}
+
+impl BufferEditor {
+    fn new(name: String, buffers: HashMap<String, Buffer>) -> Self {
+        // Get the existing buffer or create a new one
+        let buffer = if let Some(existing_buffer) = buffers.get(&name) {
+            existing_buffer.clone()
+        } else {
+            Buffer::new()
+        };
+        
+        BufferEditor {
+            buffer,
+            name,
+            buffers,
+        }
+    }
 }
 
 impl Controller for BufferEditor {
@@ -125,13 +144,22 @@ impl Controller for BufferEditor {
     fn on_tick(&mut self, _game: &mut Game) {}
 }
 
-fn run_command(editor: &mut BufferEditor, cmd: &str)  -> Result<(), Box<dyn Error>> {
+fn run_command(editor: &mut HashMap<String, Buffer>, cmd: &str)  -> Result<(), Box<dyn Error>> {
     if cmd.starts_with("open") {
-        run_game(
-            editor,
-            GameSettings::new()
-                .tick_duration(Duration::from_millis(25))
-        )?;
+        let parts: Vec<&str> = cmd.split_whitespace().collect();
+        if parts.len() > 1 {
+            let name = parts[1];
+
+            // let mut editor = BufferEditor::new(name, _);
+
+            run_game(
+                editor,
+                GameSettings::new()
+                    .tick_duration(Duration::from_millis(25))
+            )?;
+        } else {
+            println!("Error: No name provided. Usage: open NAME");
+        }
     } else {
         println!("Command not recognised!");
     }
@@ -147,9 +175,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Welcome to BuffeRS. ");
     
     // you're only creating one buffer
-    let mut editor = BufferEditor {
-        buffer: Buffer::new()
-    };
+    // let mut editor = BufferEditor {
+    //     buffer: Buffer::new()
+    // };
+
+    // make a bunch of editors 
+    let mut editors = HashMap::new();
 
     // `()` can be used when no completer is required
     let mut rl = Editor::<()>::new()?;
