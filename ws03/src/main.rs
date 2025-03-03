@@ -1,5 +1,5 @@
 use termgame::{Controller, CharChunkMap, GameSettings, Game, GameEvent, SimpleEvent, KeyCode, run_game};
-
+use std::collections::HashMap;
 use std::error::Error;
 use std::time::Duration;
 
@@ -72,12 +72,15 @@ impl Buffer {
 /// implements "Controller", which defines how
 /// something should interact with the terminal.
 struct BufferEditor {
-    buffer: Buffer,
+    buffer: HashMap<String, Buffer>, // use string as the key to the buffer
 }
 
 impl Controller for BufferEditor {
     /// This gets run once, you can probably ignore it.
-    fn on_start(&mut self, _game: &mut Game) {
+    fn on_start(&mut self, game: &mut Game) {
+        let mut chunkmap = CharChunkMap::new();
+        self.buffer.chunkmap_from_textarea(&mut chunkmap);
+        game.swap_chunkmap(&mut chunkmap);
     }
 
     /// Any time there's a keypress, you'll get this
@@ -122,13 +125,10 @@ impl Controller for BufferEditor {
     fn on_tick(&mut self, _game: &mut Game) {}
 }
 
-fn run_command(cmd: &str)  -> Result<(), Box<dyn Error>> {
-    let mut editor = BufferEditor {
-        buffer: Buffer::new()
-    };
+fn run_command(editor: &mut BufferEditor, cmd: &str)  -> Result<(), Box<dyn Error>> {
     if cmd.starts_with("open") {
         run_game(
-            &mut editor,
+            editor,
             GameSettings::new()
                 .tick_duration(Duration::from_millis(25))
         )?;
@@ -145,6 +145,11 @@ use rustyline::Editor;
 fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Welcome to BuffeRS. ");
+    
+    // you're only creating one buffer
+    let mut editor = BufferEditor {
+        buffer: Buffer::new()
+    };
 
     // `()` can be used when no completer is required
     let mut rl = Editor::<()>::new()?;
@@ -152,7 +157,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let readline = rl.readline(">> ");
         match readline {
             Ok(line) => {
-                run_command(&line)?;
+                run_command(&mut editor, &line)?;
                 rl.add_history_entry(line.as_str());
             },
             Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => {
