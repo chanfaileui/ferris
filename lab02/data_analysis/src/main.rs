@@ -54,24 +54,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Number of students: {}", unique_students);
 
     println!(
-        "Most common course: {} with {} {}",
+        "Most common course: {} with {} students",
         max_name,
         max_count,
-        if *max_count == 1 {
-            "student"
-        } else {
-            "students"
-        }
+        // if *max_count == 1 {
+        //     "student"
+        // } else {
+        //     "students"
+        // }
     );
     println!(
-        "Least common course: {} with {} {}",
+        "Least common course: {} with {} students",
         min_name,
         min_count,
-        if *min_count == 1 {
-            "student"
-        } else {
-            "students"
-        }
+        // if *min_count == 1 {
+        //     "student"
+        // } else {
+        //     "students"
+        // }
     );
 
     println!("Average WAM: {:.2}", average_wam);
