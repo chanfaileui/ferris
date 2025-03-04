@@ -1,12 +1,13 @@
-use termgame::{Controller, CharChunkMap, GameSettings, Game, GameEvent, SimpleEvent, KeyCode, run_game};
 use std::collections::HashMap;
 use std::error::Error;
 use std::time::Duration;
-
+use termgame::{
+    run_game, CharChunkMap, Controller, Game, GameEvent, GameSettings, KeyCode, SimpleEvent,
+};
 
 /// This is a single "buffer".
 struct Buffer {
-    text: String
+    text: String,
 }
 
 impl Buffer {
@@ -16,7 +17,7 @@ impl Buffer {
     /// ```
     fn new() -> Buffer {
         Buffer {
-            text: String::new()
+            text: String::new(),
         }
     }
 
@@ -64,7 +65,6 @@ impl Buffer {
     // fn example_ref(&self) -> i32 {
     //     todo!()
     // }
-
 }
 
 /// This struct implements all the
@@ -72,25 +72,34 @@ impl Buffer {
 /// implements "Controller", which defines how
 /// something should interact with the terminal.
 struct BufferEditor {
-    buffer: Buffer,
-    // name: String,
-    // buffers: HashMap<String, Buffer>
+    buffers: HashMap<String, Buffer>, // use string as the key to the buffer
+    active_buffer: String,            // track the currently active buffer
 }
 
 impl BufferEditor {
-    fn new(name: String, buffers: HashMap<String, Buffer>) -> Self {
-        // Get the existing buffer or create a new one
-        let buffer = if let Some(existing_buffer) = buffers.get(&name) {
-            existing_buffer.clone()
-        } else {
-            Buffer::new()
-        };
-        
+    /// Create a new BufferEditor with a default buffer
+    fn new() -> Self {
+        let mut buffers = HashMap::new();
+        let default_name = "default".to_string();
+        buffers.insert(default_name.clone(), Buffer::new());
+
         BufferEditor {
-            buffer,
-            name,
             buffers,
+            active_buffer: default_name,
         }
+    }
+
+    /// Get the active buffer
+    fn get_active_buffer(&mut self) -> &mut Buffer {
+        self.buffers.get_mut(&self.active_buffer).unwrap()
+    }
+
+    /// Open a buffer with the given name, creating it if it doesn't exist
+    fn open_buffer(&mut self, name: &str) {
+        if !self.buffers.contains_key(name) {
+            self.buffers.insert(name.to_string(), Buffer::new());
+        }
+        self.active_buffer = name.to_string();
     }
 }
 
@@ -98,7 +107,7 @@ impl Controller for BufferEditor {
     /// This gets run once, you can probably ignore it.
     fn on_start(&mut self, game: &mut Game) {
         let mut chunkmap = CharChunkMap::new();
-        self.buffer.chunkmap_from_textarea(&mut chunkmap);
+        self.get_active_buffer().chunkmap_from_textarea(&mut chunkmap);
         game.swap_chunkmap(&mut chunkmap);
     }
 
@@ -106,36 +115,29 @@ impl Controller for BufferEditor {
     /// function called.
     fn on_event(&mut self, game: &mut Game, event: GameEvent) {
         match event.into() {
-            SimpleEvent::Just(KeyCode::Char(c)) => {
-                self.buffer.push_char(c)
-            },
-            SimpleEvent::Just(KeyCode::Enter) => {
-                self.buffer.push_char('\n')
-            },
-            SimpleEvent::Just(KeyCode::Backspace) => {
-                self.buffer.pop_char()
-            },
+            SimpleEvent::Just(KeyCode::Char(c)) => self.get_active_buffer().push_char(c),
+            SimpleEvent::Just(KeyCode::Enter) => self.get_active_buffer().push_char('\n'),
+            SimpleEvent::Just(KeyCode::Backspace) => self.get_active_buffer().pop_char(),
             SimpleEvent::Just(KeyCode::Esc) => {
                 game.end_game();
-            },
+            }
             SimpleEvent::Just(KeyCode::Up) => {
                 let mut viewport = game.get_viewport();
                 if viewport.y > 0 {
                     viewport.y -= 1;
                 }
                 game.set_viewport(viewport)
-            },
+            }
             SimpleEvent::Just(KeyCode::Down) => {
                 let mut viewport = game.get_viewport();
                 viewport.y += 1;
                 game.set_viewport(viewport)
-            },
+            }
             _ => {}
         }
         let mut chunkmap = CharChunkMap::new();
-        self.buffer.chunkmap_from_textarea(&mut chunkmap);
+        self.get_active_buffer().chunkmap_from_textarea(&mut chunkmap);
         game.swap_chunkmap(&mut chunkmap);
-
     }
 
     /// This function gets called regularly, so you can use it
@@ -144,24 +146,23 @@ impl Controller for BufferEditor {
     fn on_tick(&mut self, _game: &mut Game) {}
 }
 
-fn run_command(editor: &mut HashMap<String, Buffer>, cmd: &str)  -> Result<(), Box<dyn Error>> {
-    if cmd.starts_with("open") {
-        let parts: Vec<&str> = cmd.split_whitespace().collect();
-        if parts.len() > 1 {
-            let name = parts[1];
+fn run_command(editor: &mut BufferEditor, cmd: &str) -> Result<(), Box<dyn Error>> {
+    let parts: Vec<&str> = cmd.split_whitespace().collect();
+    if parts.is_empty() {
+        return Ok(());
+    }
 
-            // let mut editor = BufferEditor::new(name, _);
-
+    match parts[0] {
+        "open" => {
+            if parts.len() > 1 {
+                editor.open_buffer(parts[1]);
+            }
             run_game(
                 editor,
-                GameSettings::new()
-                    .tick_duration(Duration::from_millis(25))
-            )?;
-        } else {
-            println!("Error: No name provided. Usage: open NAME");
+                GameSettings::new().tick_duration(Duration::from_millis(25)),
+            )?
         }
-    } else {
-        println!("Command not recognised!");
+        _ => println!("Command not recognised!"),
     }
 
     Ok(())
@@ -171,16 +172,16 @@ use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
 fn main() -> Result<(), Box<dyn Error>> {
-
     println!("Welcome to BuffeRS. ");
-    
+    // println!("Available commands: open [name], list, switch [name]");
+
     // you're only creating one buffer
     // let mut editor = BufferEditor {
     //     buffer: Buffer::new()
     // };
 
-    // make a bunch of editors 
-    let mut editors = HashMap::new();
+    // make a bunch of editors
+    let mut editor = BufferEditor::new();
 
     // `()` can be used when no completer is required
     let mut rl = Editor::<()>::new()?;
@@ -190,17 +191,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             Ok(line) => {
                 run_command(&mut editor, &line)?;
                 rl.add_history_entry(line.as_str());
-            },
-            Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => {
-                break
-            },
+            }
+            Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => break,
             Err(err) => {
                 println!("Error: {:?}", err);
-                break
+                break;
             }
         }
     }
-
 
     Ok(())
 }
