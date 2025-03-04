@@ -7,7 +7,7 @@ fn main() {
     // and so the compiler
     // complains: `use of moved value: s`
     // TODO: change the function call
-    print_strings(s, t);
+    print_strings(&s, &t);
 
     // we try to use s and t here
     // but we can't because
@@ -17,6 +17,6 @@ fn main() {
 }
 
 // TODO: change the function signature
-fn print_strings(s: String, t: String) {
+fn print_strings(s: &str, t: &str) {
     println!("inside print_strings: {}{}", s, t);
 }
