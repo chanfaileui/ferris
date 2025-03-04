@@ -46,6 +46,14 @@ impl Buffer {
         self.text.pop();
     }
 
+    fn search(&self, search_text: &str) -> Vec<(usize, &str)> {
+        self.text.lines()
+            .enumerate()
+            .filter(|(_, line)| line.contains(search_text))
+            .map(|(i, line)| (i + 1, line)) // +1 for 1-based line numbering
+            .collect()
+    }
+
     // /// This is an example of a function that takes the Buffer as owned,
     // /// as well as another text area; and returns a new Buffer.
     // /// You would either need to return a `Buffer`, or be sure that
@@ -101,6 +109,22 @@ impl BufferEditor {
         }
         self.active_buffer = name.to_string();
     }
+
+    // fn search_buffer(&mut self, search_str: &str) {
+    //     for (buffer_name, buffer_content) in &self.buffers {
+    //         if buffer_content.text.contains(search_str) {
+    //             println!("buffer_name:{} {}", buffer_name, buffer_content.text);
+    //         }
+    //     }
+    // }
+    fn search_buffer(&self, text: &str) {
+        for (buffer_name, buffer) in &self.buffers {
+            let matches = buffer.search(text);
+            for (line_num, line) in matches {
+                println!("{}:{} {}", buffer_name, line_num, line);
+            }
+        }
+    }
 }
 
 impl Controller for BufferEditor {
@@ -153,6 +177,7 @@ fn run_command(editor: &mut BufferEditor, cmd: &str) -> Result<(), Box<dyn Error
     }
 
     match parts[0] {
+        // implement open: edit struct BufferEditor and add impl BufferEditor
         "open" => {
             if parts.len() > 1 {
                 editor.open_buffer(parts[1]);
@@ -161,6 +186,14 @@ fn run_command(editor: &mut BufferEditor, cmd: &str) -> Result<(), Box<dyn Error
                 editor,
                 GameSettings::new().tick_duration(Duration::from_millis(25)),
             )?
+        },
+        "search" => {
+            if parts.len() > 1 {
+                let query = parts[1..].join(" ");
+                editor.search_buffer(&query);
+            } else {
+                eprintln!("Error: No search term provided.");
+            }
         }
         _ => println!("Command not recognised!"),
     }
