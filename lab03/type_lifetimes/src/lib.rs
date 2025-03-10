@@ -3,14 +3,14 @@ use std::collections::HashSet;
 // You will need to add lifetimes 
 // to this struct (and the fields)
 #[derive(Debug, Default)]
-pub struct Difference<'a> {
+pub struct Difference<'a, 'b> {
     first_only: Vec<&'a str>,
-    second_only: Vec<&'a str>,
+    second_only: Vec<&'b str>,
 }
 
 // You will need to add lifetimes
 // to the function and the parameters
-pub fn find_difference<'a>(sentence1: &'a str, sentence2: &'a str) -> Difference<'a> {
+pub fn find_difference<'a, 'b>(sentence1: &'a str, sentence2: &'b str) -> Difference<'a, 'b> {
 
     // DO NOT MODIFY BELOW THIS LINE 
 
@@ -66,4 +66,3 @@ mod tests {
         assert_eq!(second_only, vec!["surf"]);
     }
 }
-
