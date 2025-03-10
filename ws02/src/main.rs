@@ -1,4 +1,5 @@
-#![allow(dead_code)]
+#![allow(unused)]
+// #![allow(dead_code)]
 mod tests;
 mod useful_code;
 
