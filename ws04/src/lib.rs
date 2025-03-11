@@ -72,4 +72,17 @@ mod tests {
         let a = Coordinate::new(2, 2);
         assert!(a.is_within(&v1, &v2));
     }
+    
+    #[test]
+    fn test_direction_multiplication() {
+        let dir = Direction { x: 2, y: 3 };
+        let result = dir * 2;
+        assert_eq!(result.x, 4);
+        assert_eq!(result.y, 6);
+
+        let dir = Direction { x: 2, y: 3 };
+        let result = dir * -1;
+        assert_eq!(result.x, -2);
+        assert_eq!(result.y, -3);
+    }
 }

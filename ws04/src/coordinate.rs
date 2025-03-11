@@ -71,6 +71,24 @@ impl Coordinate {
     
         self.x >= left && self.x <= right && self.y >= bottom && self.y <= top
     }
+
+    /// Calculate the Euclidean distance between two coordinates.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use ws04::coordinate::Coordinate;
+    /// 
+    /// let a = Coordinate::new(0, 0);
+    /// let b = Coordinate::new(3, 4);
+    /// assert_eq!(a.distance(&b), 5.0);
+    /// ```
+    pub fn distance(&self, other: &Coordinate) -> f64 {
+        let x_dist = (self.x - other.x) as f64;
+        let y_dist = (self.y - other.y) as f64;
+
+        (x_dist * x_dist + y_dist * y_dist).sqrt()
+    }
 }
 
 impl Default for Coordinate {
