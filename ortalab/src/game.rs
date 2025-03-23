@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use itertools::Itertools;
-use ortalib::{Chips, Mult, Round};
+use ortalib::{Card, Chips, Mult, Rank, Round};
+use std::collections::HashMap;
 
 pub struct GameState {
     round: Round,               // The round data (from ortalib)
@@ -10,12 +10,12 @@ pub struct GameState {
 }
 
 impl GameState {
-    pub fn new(round: Round, explain: bool) -> Self {
+    pub fn new(round: Round, _explain: bool) -> Self {
         Self {
             round,
             chips: 0.0,
             mult: 0.0,
-            explain_steps: if explain { Vec::new() } else { Vec::new() },
+            explain_steps: Vec::new(),
         }
     }
 
@@ -24,13 +24,27 @@ impl GameState {
         &self.explain_steps
     }
 
-    fn group_rank(&self, round: &Round) -> HashMap<ortalib::Rank, usize> {
-        let rank_counts = round.cards_played.iter().map(|card| card.rank).counts();
+    fn group_rank(&self) -> HashMap<ortalib::Rank, usize> {
+        let rank_counts = self
+            .round
+            .cards_played
+            .iter()
+            .map(|card| card.rank)
+            .counts();
         rank_counts
     }
+    fn group_by_rank(&self) -> HashMap<Rank, Vec<&Card>> {
+        self.round.cards_played.iter()
+            .into_group_map_by(|card| card.rank)
+    }
 
-    fn group_suit(&self, round: &Round) -> HashMap<ortalib::Suit, usize> {
-        let suit_counts = round.cards_played.iter().map(|card| card.suit).counts();
+    fn group_suit(&self) -> HashMap<ortalib::Suit, usize> {
+        let suit_counts = self
+            .round
+            .cards_played
+            .iter()
+            .map(|card| card.suit)
+            .counts();
         suit_counts
     }
 
@@ -39,11 +53,12 @@ impl GameState {
         println!("cards_played {:?}", self.round.cards_played);
         println!("cards held in hand {:?}", self.round.cards_held_in_hand);
         println!("jokers! {:?}", self.round.jokers);
-        println!("{:?}", self.group_rank(self.round));
-        println!("{:?}", self.group_suit(self.round));
+        println!("{:?}", self.group_rank());
+        println!("{:?}", self.group_by_rank());
+        println!("{:?}", self.group_suit());
 
-        let rank_count: HashMap<ortalib::Rank, usize> = self.group_rank(self.round);
-        let suit_count: HashMap<ortalib::Suit, usize> = self.group_suit(self.round);
+        let rank_count: HashMap<ortalib::Rank, usize> = self.group_rank();
+        let suit_count: HashMap<ortalib::Suit, usize> = self.group_suit();
 
         // 1. Are all 5 cards the same rank?
         if rank_count.len() == 1 {
