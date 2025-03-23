@@ -1,10 +1,14 @@
+mod game;
+
 use std::{
-    collections::HashMap, error::Error, fs::File, io::{stdin, Read}, path::{Path, PathBuf}
+    error::Error,
+    fs::File,
+    io::{Read, stdin},
+    path::{Path, PathBuf},
 };
 
 use clap::Parser;
 use ortalib::{Chips, Mult, Round};
-use itertools::Itertools;
 
 #[derive(Parser, Debug)]
 struct Opts {
@@ -16,9 +20,10 @@ struct Opts {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let opts = Opts::parse();
+    println!("main {:?}", &opts);
     let round = parse_round(&opts)?;
 
-    let (chips, mult) = score(round);
+    let (chips, mult) = score(round, opts.explain); // pass in explain flag as well
 
     println!("{}", (chips * mult).floor());
     Ok(())
@@ -37,25 +42,15 @@ fn parse_round(opts: &Opts) -> Result<Round, Box<dyn Error>> {
     Ok(round)
 }
 
-fn group_rank(round: &Round) -> HashMap<ortalib::Rank, usize> {
-    let rank_counts = round.cards_played.iter().map(|card| card.rank).counts();
-    rank_counts
-}
+fn score(round: Round, explain: bool) -> (Chips, Mult) {
+    let mut game = game::GameState::new(round, explain);
+    let result = game.score();
 
-fn group_suit(round: &Round) -> HashMap<ortalib::Suit, usize> {
-    let suit_counts = round.cards_played.iter().map(|card| card.suit).counts();
-    suit_counts
-}
+    if explain {
+        for step in game.get_explanation() {
+            println!("{}", step);
+        }
+    }
 
-fn score(round: Round) -> (Chips, Mult) {
-    println!("ROUNDDDD {:?}", &round);
-    println!("cards_played {:?}", &round.cards_played);
-    println!("cards held in hand {:?}", &round.cards_held_in_hand);
-    println!("jokers! {:?}", &round.jokers);
-    println!("{:?}", group_rank(&round));
-    println!("{:?}", group_suit(&round));
-
-    // 
-    todo!()
-    // best one is 
+    result
 }
