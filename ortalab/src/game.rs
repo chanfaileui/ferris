@@ -3,20 +3,33 @@ use itertools::Itertools;
 use ortalib::{Card, Chips, Mult, PokerHand, Rank, Round, Suit};
 use std::collections::HashMap;
 
+// /// Result type for GameState operations
+// type GameResult<T> = Result<T, GameError>;
+
+// /// Custom error type for GameState operations
+// #[derive(Debug)]
+// pub enum GameError {
+//     InvalidHand(String),
+//     ScoringError(String),
+// }
+
+#[derive(Debug)]
 pub struct GameState {
     round: Round,               // The round data (from ortalib)
     chips: Chips,               // Current chip value during scoring
     mult: Mult,                 // Current multiplier during scoring
     explain_steps: Vec<String>, // Tracks explanation steps if needed
+    explain_enabled: bool,      // Whether to track explain the scoring steps
 }
 
 impl GameState {
-    pub fn new(round: Round, _explain: bool) -> Self {
+    pub fn new(round: Round, explain: bool) -> Self {
         Self {
             round,
             chips: 0.0,
             mult: 0.0,
             explain_steps: Vec::new(),
+            explain_enabled: explain,
         }
     }
 
@@ -25,16 +38,21 @@ impl GameState {
         &self.explain_steps
     }
 
+    /// Adds an explanation step if explanation is enabled
+    fn add_explanation(&mut self, step: String) {
+        if self.explain_enabled {
+            self.explain_steps.push(step);
+        }
+    }
+
     /// Returns a HashMap mapping each rank to the number of cards with that rank in played cards
     /// For example, if five 10s are played, the result will be {10: 5}
     fn group_rank(&self) -> HashMap<Rank, usize> {
-        let rank_counts = self
-            .round
+        self.round
             .cards_played
             .iter()
             .map(|card| card.rank)
-            .counts();
-        rank_counts
+            .counts()
     }
 
     /// Returns a HashMap mapping each rank to the cards with that rank in played cards
@@ -49,13 +67,11 @@ impl GameState {
     /// Returns a HashMap mapping each rank to the number of cards with that rank in played cards
     /// For example, {♣: 1, ♠: 1, ♥: 2, ♦: 1}
     fn group_suit(&self) -> HashMap<Suit, usize> {
-        let suit_counts = self
-            .round
+        self.round
             .cards_played
             .iter()
             .map(|card| card.suit)
-            .counts();
-        suit_counts
+            .counts()
     }
 
     /// Returns a HashMap mapping each suit to the number of cards with that suit in played cards
@@ -123,15 +139,6 @@ impl GameState {
     }
 
     fn identify_hand(&self) -> PokerHand {
-        println!("ROUNDDDD {:?}", self.round);
-        println!("cards_played {:?}", self.round.cards_played);
-        println!("cards held in hand {:?}", self.round.cards_held_in_hand);
-        println!("jokers! {:?}", self.round.jokers);
-        println!("group by rank: {:?}", self.group_rank());
-        println!("group by rank: {:?}", self.group_by_rank());
-        println!("group by suit: {:?}", self.group_suit());
-        println!("group by suit: {:?}", self.group_by_suit());
-
         let rank_count: HashMap<ortalib::Rank, usize> = self.group_rank();
         let suit_count: HashMap<ortalib::Suit, usize> = self.group_suit();
 
@@ -206,7 +213,20 @@ impl GameState {
     pub fn get_scoring_cards(&self, hand_type: &PokerHand) -> Vec<&Card> {
         match hand_type {
             PokerHand::HighCard => {
-                todo!()
+                // For high card, only the highest card scores
+                let rank_map = self.group_by_rank();
+                let mut ranks: Vec<Rank> = rank_map.keys().cloned().collect();
+                ranks.sort_by(|a, b| b.cmp(a)); // Sort in descending order
+
+                // Get the highest rank's cards
+                if let Some(highest_rank) = ranks.first() {
+                    if let Some(cards) = rank_map.get(highest_rank) {
+                        if !cards.is_empty() {
+                            return vec![cards[0]]; // Return only the first card of the highest rank
+                        }
+                    }
+                }
+                vec![]
             }
             PokerHand::Pair => {
                 todo!()
@@ -230,22 +250,24 @@ impl GameState {
                 todo!()
             }
             PokerHand::FiveOfAKind | PokerHand::FlushHouse | PokerHand::FlushFive => {
-                todo!()
+                self.round.cards_played.iter().collect()
             }
         }
     }
 
-    fn apply_card_scores(&mut self, scoring_cards: &[Card], mult: &mut f64) -> f64 {
+    fn apply_card_scores(
+        &mut self,
+        scoring_cards: &[&Card],
+        chips: Chips,
+        mult: Mult,
+    ) -> (Chips, Mult) {
         scoring_cards
             .iter()
             .map(|card| {
                 let rank_chips = card.rank.rank_value();
-                self.explain_steps.push(format!(
+                explain_steps.push(format!(
                     "{} +{} Chips ({} x {})",
-                    card,
-                    rank_chips,
-                    self.chips + rank_chips,
-                    *mult
+                    card, rank_chips, *chips, *mult
                 ));
 
                 // Handle enhancements, editions, jokers
@@ -290,19 +312,40 @@ impl GameState {
     }
 
     pub fn score(&mut self) -> (Chips, Mult) {
+        println!("ROUNDDDD {:?}", self.round);
+        println!("cards_played {:?}", self.round.cards_played);
+        println!("cards held in hand {:?}", self.round.cards_held_in_hand);
+        println!("jokers! {:?}", self.round.jokers);
+        println!("group by rank: {:?}", self.group_rank());
+        println!("group by rank: {:?}", self.group_by_rank());
+        println!("group by suit: {:?}", self.group_suit());
+        println!("group by suit: {:?}", self.group_by_suit());
+        // Basic check
+        if self.round.cards_played.is_empty() {
+            return (0.0, 0.0);
+        }
+
         let poker_hand: PokerHand = self.identify_hand();
 
         // Get base score values from the poker hand
-        let (mut chips, mut mult) = poker_hand.hand_value();
-        self.explain_steps
-            .push(format!("{:?} ({} x {})", poker_hand, chips, mult));
+        let (base_chips, base_mult) = poker_hand.hand_value();
+        self.add_explanation(format!("{:?} ({} x {})", poker_hand, base_chips, base_mult));
 
-        // Step 2: Score each card that contributes to the hand
+        // Step 2: Process scoring cards
         let scoring_cards = self.get_scoring_cards(&poker_hand);
-        chips += self.apply_card_scores(&scoring_cards, &mut mult);
+        let (chip_value, mult_value) =
+            self.apply_card_scores(&scoring_cards, base_chips, base_mult);
 
-        self.chips = chips;
-        self.mult = mult;
+        self.chips = chip_value;
+        self.mult = mult_value;
+
+        self.add_explanation(format!(
+            "Final score: {} chips × {} mult = {}",
+            self.chips,
+            self.mult,
+            self.chips * self.mult
+        ));
+
         (self.chips, self.mult)
     }
 }
