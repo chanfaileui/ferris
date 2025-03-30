@@ -235,54 +235,74 @@ impl GameState {
         }
     }
 
+    fn apply_card_scores(&mut self, scoring_cards: &[Card], mult: &mut f64) -> f64 {
+        scoring_cards
+            .iter()
+            .map(|card| {
+                let rank_chips = card.rank.rank_value();
+                self.explain_steps.push(format!(
+                    "{} +{} Chips ({} x {})",
+                    card,
+                    rank_chips,
+                    self.chips + rank_chips,
+                    *mult
+                ));
+
+                // Handle enhancements, editions, jokers
+                // self.apply_card_effects(card);
+                rank_chips
+            })
+            .sum()
+        // // Process each scoring card
+        // for card in scoring_cards {
+        //     // Add base chips for the card's rank
+        //     let rank_chips = card.rank.rank_value();
+        //     chips += rank_chips;
+
+        //     // Add explanation for the card's contribution
+        //     self.explain_steps.push(format!(
+        //         "{} +{} Chips ({} x {})",
+        //         card, rank_chips, chips, mult
+        //     ));
+        //     // Apply card enhancements if present
+        //     if let Some(enhancement) = card.enhancement {
+        //         // Process enhancement effects
+        //         // ... (enhancement logic)
+        //     }
+
+        //     // Apply card editions if present
+        //     if let Some(edition) = card.edition {
+        //         // Process edition effects
+        //         // ... (edition logic)
+        //     }
+
+        //     // Apply "on scored" joker effects
+        //     // ... (joker logic)
+        // }
+
+        // // Step 3: Process cards held in hand
+        // // ... (held cards logic)
+
+        // // Step 4: Process joker effects
+        // // ... (joker logic)
+
+        // chips
+    }
+
     pub fn score(&mut self) -> (Chips, Mult) {
         let poker_hand: PokerHand = self.identify_hand();
-        let score: (Chips, Mult) = poker_hand.hand_value();
 
         // Get base score values from the poker hand
-        let (base_chips, base_mult) = poker_hand.hand_value();
-        self.chips = base_chips;
-        self.mult = base_mult;
-
+        let (mut chips, mut mult) = poker_hand.hand_value();
         self.explain_steps
-            .push(format!("{:?} ({} x {})", poker_hand, self.chips, self.mult));
+            .push(format!("{:?} ({} x {})", poker_hand, chips, mult));
 
         // Step 2: Score each card that contributes to the hand
         let scoring_cards = self.get_scoring_cards(&poker_hand);
+        chips += self.apply_card_scores(&scoring_cards, &mut mult);
 
-        // Process each scoring card
-        for card in scoring_cards {
-            // Add base chips for the card's rank
-            let rank_chips = card.rank.rank_value();
-            self.chips += rank_chips;
-
-            // Add explanation for the card's contribution
-            self.explain_steps.push(format!(
-                "{} +{} Chips ({} x {})",
-                card, rank_chips, self.chips, self.mult
-            ));
-
-            // Apply card enhancements if present
-            if let Some(enhancement) = card.enhancement {
-                // Process enhancement effects
-                // ... (enhancement logic)
-            }
-
-            // Apply card editions if present
-            if let Some(edition) = card.edition {
-                // Process edition effects
-                // ... (edition logic)
-            }
-
-            // Apply "on scored" joker effects
-            // ... (joker logic)
-        }
-
-        // Step 3: Process cards held in hand
-        // ... (held cards logic)
-
-        // Step 4: Process joker effects
-        // ... (joker logic)
+        self.chips = chips;
+        self.mult = mult;
         (self.chips, self.mult)
     }
 }
