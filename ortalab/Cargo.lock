@@ -184,6 +184,7 @@ name = "ortalab"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "enum-iterator",
  "itertools",
  "ortalib",
  "serde_yaml",

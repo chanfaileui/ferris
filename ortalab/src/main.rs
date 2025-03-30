@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let (chips, mult) = score(round, opts.explain); // pass in explain flag as well
 
-    println!("{}", (chips * mult).floor());
+    // println!("score woohoo!: {}", (chips * mult).floor());
     Ok(())
 }
 
@@ -46,11 +46,13 @@ fn score(round: Round, explain: bool) -> (Chips, Mult) {
     let mut game = game::GameState::new(round, explain);
     let result = game.score();
 
+    println!("\n======== main.rs ==========");
+
+    println!("score woohoo!: {}", (result.0 * result.1).floor());
     if explain {
         for step in game.get_explanation() {
             println!("{}", step);
         }
     }
-
     result
 }

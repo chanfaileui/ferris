@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 clap = { version = "4.5.9", features = ["derive"] }
+enum-iterator = "2.1.0"
 itertools = "0.14.0"
 ortalib = "1.0.0"
 serde_yaml = "0.9.34"
