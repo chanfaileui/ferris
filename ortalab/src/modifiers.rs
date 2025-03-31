@@ -61,7 +61,7 @@ pub fn apply_steel_enhancement(
     let mut explanations = Vec::new();
     if let Some(Enhancement::Steel) = card.enhancement {
         *mult *= 1.5;
-        explanations.push(format!("{} Steel x1.5 Mult ({} x {})", card, *chips, *mult));
+        explanations.push(format!("{} x1.5 Mult ({} x {})", card, *chips, *mult));
     }
     Ok(explanations)
 }

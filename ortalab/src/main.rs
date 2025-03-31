@@ -54,7 +54,7 @@ fn score(round: Round, explain: bool) -> (Chips, Mult) {
     let mut game = game::GameState::new(round, explain);
     let result = game.score();
 
-    // println!("\n======== main.rs ==========");
+    println!("\n======== main.rs ==========");
 
     if explain {
         for step in game.get_explanation() {
