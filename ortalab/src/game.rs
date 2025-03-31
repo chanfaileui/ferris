@@ -214,7 +214,7 @@ impl GameState {
         match hand_type {
             PokerHand::HighCard => {
                 // For high card, only the highest card scores
-                let rank_map = self.group_by_rank();
+                let rank_map: HashMap<Rank, Vec<&Card>> = self.group_by_rank();
                 let mut ranks: Vec<Rank> = rank_map.keys().cloned().collect();
                 ranks.sort_by(|a: &Rank, b: &Rank| b.cmp(a)); // Sort in descending order
 
@@ -230,16 +230,56 @@ impl GameState {
             }
             PokerHand::Pair => {
                 // Find the pair
-                todo!()
+                self.group_by_rank()
+                    .into_iter()
+                    .find_map(|(_, cards)| {
+                        if cards.len() == 2 {
+                            Some(cards.iter().map(|&card| *card).collect())
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or_default()
             }
             PokerHand::TwoPair => {
-                todo!()
+                self.group_by_rank()
+                    .into_iter()
+                    .filter_map(|(_, cards)| {
+                        if cards.len() == 2 {
+                            // This is a pair
+                            Some(cards.iter().map(|&card| *card).collect::<Vec<Card>>())
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten() // Flatten the Vec<Vec<Card>> into Vec<Card>
+                    .collect()
             }
             PokerHand::ThreeOfAKind => {
-                todo!()
+                // Find the pair
+                self.group_by_rank()
+                    .into_iter()
+                    .find_map(|(_, cards)| {
+                        if cards.len() == 3 {
+                            Some(cards.iter().map(|&card| *card).collect())
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or_default()
             }
             PokerHand::FourOfAKind => {
-                todo!()
+                // Find the pair
+                self.group_by_rank()
+                    .into_iter()
+                    .find_map(|(_, cards)| {
+                        if cards.len() == 4 {
+                            Some(cards.iter().map(|&card| *card).collect())
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or_default()
             }
             // for these hands, all cards are scored
             PokerHand::FiveOfAKind
@@ -281,7 +321,7 @@ impl GameState {
 
         // Step 4: Process each card separately to avoid borrowing conflicts
         for card in scoring_cards {
-            let rank_chips = card.rank.rank_value();
+            let rank_chips: f64 = card.rank.rank_value();
             chips += rank_chips;
 
             self.add_explanation(format!(
