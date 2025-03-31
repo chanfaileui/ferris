@@ -24,24 +24,24 @@ fn group_by_rank(cards: &[Card]) -> IndexMap<Rank, Vec<&Card>> {
     groups
 }
 
-/// Returns a IndexMap mapping each rank to the number of cards with that rank in played cards
-/// For example, {♣: 1, ♠: 1, ♥: 2, ♦: 1}
-fn group_suit(cards: &[Card]) -> IndexMap<Suit, usize> {
-    let mut suit_counts: IndexMap<Suit, usize> = IndexMap::new();
+// /// Returns a IndexMap mapping each rank to the number of cards with that rank in played cards
+// /// For example, {♣: 1, ♠: 1, ♥: 2, ♦: 1}
+// fn group_suit(cards: &[Card]) -> IndexMap<Suit, usize> {
+//     let mut suit_counts: IndexMap<Suit, usize> = IndexMap::new();
 
-    // if there are any wild cards, we need to count them as all suits
-    for card in cards {
-        if card.enhancement == Some(ortalib::Enhancement::Wild) {
-            for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-                *suit_counts.entry(suit).or_insert(0) += 1;
-            }
-        } else {
-            *suit_counts.entry(card.suit).or_insert(0) += 1;
-        }
-    }
+//     // if there are any wild cards, we need to count them as all suits
+//     for card in cards {
+//         if card.enhancement == Some(ortalib::Enhancement::Wild) {
+//             for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+//                 *suit_counts.entry(suit).or_insert(0) += 1;
+//             }
+//         } else {
+//             *suit_counts.entry(card.suit).or_insert(0) += 1;
+//         }
+//     }
 
-    suit_counts
-}
+//     suit_counts
+// }
 
 /// Returns a IndexMap mapping each suit to the number of cards with that suit in played cards
 /// For example, if five 10s are played, the result will be {♠: [10♠], ♣: [10♣], ♥: [10♥, 10♥], ♦: [10♦]}

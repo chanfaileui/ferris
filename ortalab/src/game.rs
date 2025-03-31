@@ -1,6 +1,7 @@
 use crate::errors::{GameError, GameResult};
-use crate::modifiers::{apply_edition, apply_enhancement, apply_steel_enhancement};
 use crate::poker::{get_scoring_cards, identify_hand};
+use crate::modifiers::{apply_edition, apply_enhancement, apply_steel_enhancement};
+use crate::jokers::basic::apply_joker;
 
 // Import from external crates
 use ortalib::{Card, Chips, Enhancement, Mult, PokerHand, Round};
@@ -12,6 +13,14 @@ pub struct GameState {
     mult: Mult,                 // Current multiplier during scoring
     explain_steps: Vec<String>, // Tracks explanation steps if needed
     explain_enabled: bool,      // Whether to track explain the scoring steps
+
+    // for jokers
+    pub scoring_cards: Vec<Card>,  // Cards that contribute to the poker hand
+    pub contains_pair: bool,
+    pub contains_two_pair: bool,
+    pub contains_three_of_a_kind: bool,
+    pub contains_straight: bool,
+    pub contains_flush: bool,
 }
 
 impl GameState {
@@ -94,10 +103,9 @@ impl GameState {
             }
         }
 
-        // Step 6: Process jokers
-        // let jokers = self.round.jokers.clone();
-        // for card in jokers {
-        //     let joker_explanations = apply_joker(&card, &mut chips, &mut mult)?;
+        // // Step 6: Process jokers
+        // for joker in &self.round.jokers {
+        //     let joker_explanations = apply_joker(&joker, &mut chips, &mut mult)?;
         //     explanations.extend(joker_explanations);
         // }
 
