@@ -28,7 +28,7 @@ struct Opts {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let opts = Opts::parse();
-    println!("main {:?}", &opts);
+    // println!("main {:?}", &opts);
     let round = parse_round(&opts)?;
 
     let (chips, mult) = score(round, opts.explain); // pass in explain flag as well
@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 fn parse_round(opts: &Opts) -> Result<Round, Box<dyn Error>> {
     let mut input = String::new();
-    println!("Current {:?}", &opts);
+    // println!("Current {:?}", &opts);
     if opts.file == Path::new("-") {
         stdin().read_to_string(&mut input)?;
     } else {
@@ -54,7 +54,7 @@ fn score(round: Round, explain: bool) -> (Chips, Mult) {
     let mut game = game::GameState::new(round, explain);
     let result = game.score();
 
-    println!("\n======== main.rs ==========");
+    // println!("\n======== main.rs ==========");
 
     if explain {
         for step in game.get_explanation() {

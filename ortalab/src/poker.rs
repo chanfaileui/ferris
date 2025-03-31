@@ -79,10 +79,10 @@ fn has_three_two_pattern(cards: &[Card]) -> bool {
 }
 
 pub fn identify_hand(cards: &[Card]) -> GameResult<PokerHand> {
-    println!("group by rank: {:?}", group_rank(cards));
-    println!("group by rank: {:?}", group_by_rank(cards));
-    println!("group by suit: {:?}", group_suit(cards));
-    println!("group by suit: {:?}", group_by_suit(cards));
+    // println!("group by rank: {:?}", group_rank(cards));
+    // println!("group by rank: {:?}", group_by_rank(cards));
+    // println!("group by suit: {:?}", group_suit(cards));
+    // println!("group by suit: {:?}", group_by_suit(cards));
 
     let rank_count: HashMap<ortalib::Rank, usize> = group_rank(cards);
     let suit_count: HashMap<ortalib::Suit, usize> = group_suit(cards);

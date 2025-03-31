@@ -39,10 +39,10 @@ impl GameState {
     }
 
     pub fn score(&mut self) -> GameResult<(Chips, Mult)> {
-        println!("ROUNDDDD {:?}", self.round);
-        println!("cards_played {:?}", self.round.cards_played);
-        println!("cards held in hand {:?}", self.round.cards_held_in_hand);
-        println!("jokers! {:?}", self.round.jokers);
+        // println!("ROUNDDDD {:?}", self.round);
+        // println!("cards_played {:?}", self.round.cards_played);
+        // println!("cards held in hand {:?}", self.round.cards_held_in_hand);
+        // println!("jokers! {:?}", self.round.jokers);
 
         // Basic check
         if self.round.cards_played.is_empty() {
@@ -60,7 +60,7 @@ impl GameState {
 
         // Step 3: Initialize with base values
         let mut chips = base_chips;
-        let mult = base_mult;
+        let mut mult = base_mult;
 
         // Step 4: Process each card separately to avoid borrowing conflicts
         for card in scoring_cards {
@@ -68,10 +68,32 @@ impl GameState {
             chips += rank_chips;
 
             self.add_explanation(format!(
-                "{} +{} Chips ({} x {})",
-                card, rank_chips, chips, mult
+                "{}{} +{} Chips ({} x {})",
+                card.rank, card.suit, rank_chips, chips, mult
             ));
+
+            // Apply card enhancements if present
+            if let Some(enhancement) = card.enhancement {
+                let explanations = apply_enhancement(&card, &mut chips, &mut mult)?;
+                for explanation in explanations {
+                    self.add_explanation(explanation);
+                }
+            }
+
+            // Apply card editions if present
+            if let Some(edition) = card.edition {
+                let explanations = apply_edition(&card, &mut chips, &mut mult)?;
+                for explanation in explanations {
+                    self.add_explanation(explanation);
+                }
+            }
         }
+
+        // Step 3: Process cards held in hand
+        // ... (held cards logic)
+
+        // Step 4: Process joker effects
+        // ... (joker logic)
 
         self.chips = chips;
         self.mult = mult;
