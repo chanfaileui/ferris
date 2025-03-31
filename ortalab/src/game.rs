@@ -210,25 +210,26 @@ impl GameState {
     /// According to the rules, generally only the cards relevant to the poker hand
     /// are scored, and all others are unscored. This function identifies which cards
     /// should be scored based on the poker hand type.
-    pub fn get_scoring_cards(&self, hand_type: &PokerHand) -> Vec<&Card> {
+    pub fn get_scoring_cards(&self, hand_type: &PokerHand) -> Vec<Card> {
         match hand_type {
             PokerHand::HighCard => {
                 // For high card, only the highest card scores
                 let rank_map = self.group_by_rank();
                 let mut ranks: Vec<Rank> = rank_map.keys().cloned().collect();
-                ranks.sort_by(|a, b| b.cmp(a)); // Sort in descending order
+                ranks.sort_by(|a: &Rank, b: &Rank| b.cmp(a)); // Sort in descending order
 
                 // Get the highest rank's cards
                 if let Some(highest_rank) = ranks.first() {
                     if let Some(cards) = rank_map.get(highest_rank) {
                         if !cards.is_empty() {
-                            return vec![cards[0]]; // Return only the first card of the highest rank
+                            return vec![*cards[0]]; // Return only the first card of the highest rank
                         }
                     }
                 }
                 vec![]
             }
             PokerHand::Pair => {
+                // Find the pair
                 todo!()
             }
             PokerHand::TwoPair => {
@@ -237,78 +238,18 @@ impl GameState {
             PokerHand::ThreeOfAKind => {
                 todo!()
             }
-            PokerHand::Straight | PokerHand::StraightFlush => {
-                todo!()
-            }
-            PokerHand::Flush => {
-                todo!()
-            }
-            PokerHand::FullHouse => {
-                todo!()
-            }
             PokerHand::FourOfAKind => {
                 todo!()
             }
-            PokerHand::FiveOfAKind | PokerHand::FlushHouse | PokerHand::FlushFive => {
-                self.round.cards_played.iter().collect()
-            }
+            // for these hands, all cards are scored
+            PokerHand::FiveOfAKind
+            | PokerHand::FlushHouse
+            | PokerHand::FlushFive
+            | PokerHand::Straight
+            | PokerHand::StraightFlush
+            | PokerHand::Flush
+            | PokerHand::FullHouse => self.round.cards_played.clone(),
         }
-    }
-
-    fn apply_card_scores(
-        &mut self,
-        scoring_cards: &[&Card],
-        chips: Chips,
-        mult: Mult,
-    ) -> (Chips, Mult) {
-        scoring_cards
-            .iter()
-            .map(|card| {
-                let rank_chips = card.rank.rank_value();
-                explain_steps.push(format!(
-                    "{} +{} Chips ({} x {})",
-                    card, rank_chips, *chips, *mult
-                ));
-
-                // Handle enhancements, editions, jokers
-                // self.apply_card_effects(card);
-                rank_chips
-            })
-            .sum()
-        // // Process each scoring card
-        // for card in scoring_cards {
-        //     // Add base chips for the card's rank
-        //     let rank_chips = card.rank.rank_value();
-        //     chips += rank_chips;
-
-        //     // Add explanation for the card's contribution
-        //     self.explain_steps.push(format!(
-        //         "{} +{} Chips ({} x {})",
-        //         card, rank_chips, chips, mult
-        //     ));
-        //     // Apply card enhancements if present
-        //     if let Some(enhancement) = card.enhancement {
-        //         // Process enhancement effects
-        //         // ... (enhancement logic)
-        //     }
-
-        //     // Apply card editions if present
-        //     if let Some(edition) = card.edition {
-        //         // Process edition effects
-        //         // ... (edition logic)
-        //     }
-
-        //     // Apply "on scored" joker effects
-        //     // ... (joker logic)
-        // }
-
-        // // Step 3: Process cards held in hand
-        // // ... (held cards logic)
-
-        // // Step 4: Process joker effects
-        // // ... (joker logic)
-
-        // chips
     }
 
     pub fn score(&mut self) -> (Chips, Mult) {
@@ -325,27 +266,32 @@ impl GameState {
             return (0.0, 0.0);
         }
 
+        // Step 1: Identify the poker hand
         let poker_hand: PokerHand = self.identify_hand();
-
-        // Get base score values from the poker hand
         let (base_chips, base_mult) = poker_hand.hand_value();
         self.add_explanation(format!("{:?} ({} x {})", poker_hand, base_chips, base_mult));
 
-        // Step 2: Process scoring cards
-        let scoring_cards = self.get_scoring_cards(&poker_hand);
-        let (chip_value, mult_value) =
-            self.apply_card_scores(&scoring_cards, base_chips, base_mult);
+        // Step 2: Get scoring cards
+        // Collect into a Vec to end the immutable borrow of self
+        let scoring_cards: Vec<Card> = self.get_scoring_cards(&poker_hand).to_vec();
 
-        self.chips = chip_value;
-        self.mult = mult_value;
+        // Step 3: Initialize with base values
+        let mut chips = base_chips;
+        let mult = base_mult;
 
-        self.add_explanation(format!(
-            "Final score: {} chips × {} mult = {}",
-            self.chips,
-            self.mult,
-            self.chips * self.mult
-        ));
+        // Step 4: Process each card separately to avoid borrowing conflicts
+        for card in scoring_cards {
+            let rank_chips = card.rank.rank_value();
+            chips += rank_chips;
 
+            self.add_explanation(format!(
+                "{} +{} Chips ({} x {})",
+                card, rank_chips, chips, mult
+            ));
+        }
+
+        self.chips = chips;
+        self.mult = mult;
         (self.chips, self.mult)
     }
 }

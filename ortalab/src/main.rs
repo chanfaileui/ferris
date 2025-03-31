@@ -48,11 +48,12 @@ fn score(round: Round, explain: bool) -> (Chips, Mult) {
 
     println!("\n======== main.rs ==========");
 
-    println!("score woohoo!: {}", (result.0 * result.1).floor());
     if explain {
         for step in game.get_explanation() {
             println!("{}", step);
         }
     }
+    println!("\n{}", (result.0 * result.1).floor());
+    // println!("score woohoo!: {}", (result.0 * result.1).floor());
     result
 }
