@@ -4,7 +4,6 @@ use crate::poker::{get_scoring_cards, identify_hand};
 
 // Import from external crates
 use ortalib::{Card, Chips, Enhancement, Mult, PokerHand, Round};
-use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct GameState {
@@ -39,10 +38,10 @@ impl GameState {
     }
 
     pub fn score(&mut self) -> GameResult<(Chips, Mult)> {
-        println!("ROUNDDDD {:?}", self.round);
-        println!("cards_played {:?}", self.round.cards_played);
-        println!("cards held in hand {:?}", self.round.cards_held_in_hand);
-        println!("jokers! {:?}", self.round.jokers);
+        // dbg!("ROUNDDDD {:?}", &self.round);
+        // dbg!("cards_played {:?}", &self.round.cards_played);
+        // dbg!("cards held in hand {:?}", &self.round.cards_held_in_hand);
+        // dbg!("jokers! {:?}", &self.round.jokers);
 
         // Basic check
         if self.round.cards_played.is_empty() {

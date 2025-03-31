@@ -1,38 +1,75 @@
-use crate::errors::{GameError, GameResult};
+use crate::errors::GameResult;
 use enum_iterator::Sequence;
-use itertools::Itertools;
-use ortalib::{Card, Enhancement, PokerHand, Rank, Suit};
-use std::collections::HashMap;
+// use itertools::Itertools;
+use indexmap::IndexMap;
+use ortalib::{Card, PokerHand, Rank, Suit};
 
-/// Returns a HashMap mapping each rank to the number of cards with that rank in played cards
+/// Returns a IndexMap mapping each rank to the number of cards with that rank in played cards
 /// For example, if five 10s are played, the result will be {10: 5}
-fn group_rank(cards: &[Card]) -> HashMap<Rank, usize> {
-    cards.iter().map(|card| card.rank).counts()
+fn group_rank(cards: &[Card]) -> IndexMap<Rank, usize> {
+    let mut counts = IndexMap::new();
+    for card in cards {
+        *counts.entry(card.rank).or_insert(0) += 1;
+    }
+    counts
 }
 
-/// Returns a HashMap mapping each rank to the cards with that rank in played cards
+/// Returns a IndexMap mapping each rank to the cards with that rank in played cards
 /// For example, if five 10s are played, the result will be {10: [10♥, 10♠, 10♦, 10♣, 10♥]}
-fn group_by_rank(cards: &[Card]) -> HashMap<Rank, Vec<&Card>> {
-    cards.iter().into_group_map_by(|card| card.rank)
+fn group_by_rank(cards: &[Card]) -> IndexMap<Rank, Vec<&Card>> {
+    let mut groups = IndexMap::new();
+    for card in cards {
+        groups.entry(card.rank).or_insert_with(Vec::new).push(card);
+    }
+    groups
 }
 
-/// Returns a HashMap mapping each rank to the number of cards with that rank in played cards
+/// Returns a IndexMap mapping each rank to the number of cards with that rank in played cards
 /// For example, {♣: 1, ♠: 1, ♥: 2, ♦: 1}
-fn group_suit(cards: &[Card]) -> HashMap<Suit, usize> {
-    cards.iter().map(|card| card.suit).counts()
+fn group_suit(cards: &[Card]) -> IndexMap<Suit, usize> {
+    let mut suit_counts: IndexMap<Suit, usize> = IndexMap::new();
+
+    // if there are any wild cards, we need to count them as all suits
+    for card in cards {
+        if card.enhancement == Some(ortalib::Enhancement::Wild) {
+            for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                *suit_counts.entry(suit).or_insert(0) += 1;
+            }
+        } else {
+            *suit_counts.entry(card.suit).or_insert(0) += 1;
+        }
+    }
+
+    suit_counts
 }
 
-/// Returns a HashMap mapping each suit to the number of cards with that suit in played cards
+/// Returns a IndexMap mapping each suit to the number of cards with that suit in played cards
 /// For example, if five 10s are played, the result will be {♠: [10♠], ♣: [10♣], ♥: [10♥, 10♥], ♦: [10♦]}
-fn group_by_suit(cards: &[Card]) -> HashMap<Suit, Vec<&Card>> {
-    cards.iter().into_group_map_by(|card| card.suit)
+fn group_by_suit(cards: &[Card]) -> IndexMap<Suit, Vec<&Card>> {
+    let mut suit_cards: IndexMap<Suit, Vec<&Card>> = IndexMap::new();
+
+    // if there are any wild cards, we need to count them as all suits
+    for card in cards {
+        if card.enhancement == Some(ortalib::Enhancement::Wild) {
+            for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                suit_cards.entry(suit).or_default().push(card);
+            }
+        } else {
+            suit_cards.entry(card.suit).or_default().push(card);
+        }
+    }
+
+    suit_cards
 }
 
 fn is_sequential(cards: &[Card]) -> bool {
+    if cards.len() < 5 {
+        return false; // Not enough cards for a straight
+    }
+
     // get ranks and sort them
     let mut ranks: Vec<Rank> = cards.iter().map(|card| card.rank).collect();
     ranks.sort();
-    ranks.dedup(); // Remove duplicates for checking sequence
 
     // Special case: check for A-5 straight (Ace is low)
     if ranks[0] == Rank::Two
@@ -79,19 +116,32 @@ fn has_three_two_pattern(cards: &[Card]) -> bool {
     counts.contains(&3) && counts.contains(&2)
 }
 
+/// Determines if the cards form a flush (all cards of the same suit)
+fn is_flush(cards: &[Card]) -> bool {
+    if cards.len() < 5 {
+        return false;
+    }
+
+    // Group by suit, considering Wild cards as every suit
+    let suit_groups = group_by_suit(cards);
+
+    // Check if any suit has enough cards for a flush
+    suit_groups.values().any(|suit_cards| suit_cards.len() >= 5)
+}
+
 pub fn identify_hand(cards: &[Card]) -> GameResult<PokerHand> {
     // println!("group by rank: {:?}", group_rank(cards));
     // println!("group by rank: {:?}", group_by_rank(cards));
     // println!("group by suit: {:?}", group_suit(cards));
     // println!("group by suit: {:?}", group_by_suit(cards));
 
-    let rank_count: HashMap<ortalib::Rank, usize> = group_rank(cards);
-    let suit_count: HashMap<ortalib::Suit, usize> = group_suit(cards);
+    let rank_count: IndexMap<ortalib::Rank, usize> = group_rank(cards);
+    // let suit_count: IndexMap<ortalib::Suit, usize> = group_suit(cards);
 
     // 1. Are all 5 cards the same rank?
     if rank_count.len() == 1 {
         // are they the same suit?
-        if suit_count.len() == 1 {
+        if is_flush(cards) {
             return Ok(PokerHand::FlushFive);
         } else {
             return Ok(PokerHand::FiveOfAKind);
@@ -99,17 +149,14 @@ pub fn identify_hand(cards: &[Card]) -> GameResult<PokerHand> {
     }
 
     // 2. Are all 5 cards the same suit?
-    if suit_count.len() == 1 {
+    if is_flush(cards) {
         // Check if sequential
-        if is_sequential(cards) {
+        if has_three_two_pattern(cards) {
+            return Ok(PokerHand::FlushHouse);
+        } else if is_sequential(cards) {
             return Ok(PokerHand::StraightFlush);
         } else {
-            // check if 3 + 2 pattern
-            if has_three_two_pattern(cards) {
-                return Ok(PokerHand::FlushHouse);
-            } else {
-                return Ok(PokerHand::Flush);
-            }
+            return Ok(PokerHand::Flush);
         }
     }
 
@@ -160,7 +207,7 @@ pub fn get_scoring_cards(hand_type: &PokerHand, cards: &[Card]) -> Vec<Card> {
     match hand_type {
         PokerHand::HighCard => {
             // For high card, only the highest card scores
-            let rank_map: HashMap<Rank, Vec<&Card>> = group_by_rank(cards);
+            let rank_map: IndexMap<Rank, Vec<&Card>> = group_by_rank(cards);
             let mut ranks: Vec<Rank> = rank_map.keys().cloned().collect();
             ranks.sort_by(|a: &Rank, b: &Rank| b.cmp(a)); // Sort in descending order
 
@@ -193,7 +240,14 @@ pub fn get_scoring_cards(hand_type: &PokerHand, cards: &[Card]) -> Vec<Card> {
                 .filter_map(|(_, cards)| {
                     if cards.len() == 2 {
                         // This is a pair
-                        Some(cards.iter().map(|&card| *card).collect::<Vec<Card>>())
+                        let pair_cards = cards
+                            .iter()
+                            .map(|&card| {
+                                dbg!(card);
+                                *card
+                            })
+                            .collect::<Vec<Card>>();
+                        Some(pair_cards)
                     } else {
                         None
                     }
