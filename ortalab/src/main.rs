@@ -3,10 +3,10 @@ mod game;
 mod modifiers;
 mod poker;
 
-use clap::Parser;
-use errors::GameResult;
-use game::GameState;
-use std::{fs::File, io::Read, path::PathBuf};
+// use clap::Parser;
+// use errors::GameResult;
+// use game::GameState;
+// use std::{fs::File, io::Read, path::PathBuf};
 
 use std::{
     error::Error,
@@ -62,7 +62,11 @@ fn score(round: Round, explain: bool) -> (Chips, Mult) {
         }
         println!();
     }
-    println!("{}", (result.0 * result.1).floor());
-    // println!("score woohoo!: {}", (result.0 * result.1).floor());
-    result
+    match result {
+        Ok((chips, mult)) => {
+            println!("{}", (chips * mult).floor());
+            (chips, mult)
+        }
+        Err(e) => panic!("Game error: {}", e),
+    }
 }

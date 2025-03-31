@@ -1,6 +1,9 @@
-use enum_iterator::Sequence;
-use itertools::Itertools;
-use ortalib::{Card, Chips, Mult, PokerHand, Rank, Round, Suit};
+use crate::errors::{GameError, GameResult};
+use crate::modifiers::{apply_edition, apply_enhancement};
+use crate::poker::{get_scoring_cards, identify_hand};
+
+// Import from external crates
+use ortalib::{Card, Chips, Mult, PokerHand, Round};
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -35,28 +38,25 @@ impl GameState {
         }
     }
 
-    pub fn score(&mut self) -> (Chips, Mult) {
+    pub fn score(&mut self) -> GameResult<(Chips, Mult)> {
         println!("ROUNDDDD {:?}", self.round);
         println!("cards_played {:?}", self.round.cards_played);
         println!("cards held in hand {:?}", self.round.cards_held_in_hand);
         println!("jokers! {:?}", self.round.jokers);
-        println!("group by rank: {:?}", self.group_rank());
-        println!("group by rank: {:?}", self.group_by_rank());
-        println!("group by suit: {:?}", self.group_suit());
-        println!("group by suit: {:?}", self.group_by_suit());
+
         // Basic check
         if self.round.cards_played.is_empty() {
-            return (0.0, 0.0);
+            return Ok((0.0, 0.0));
         }
 
         // Step 1: Identify the poker hand
-        let poker_hand: PokerHand = self.identify_hand();
+        let poker_hand: PokerHand = identify_hand(&self.round.cards_played)
+            .map_err(|e| GameError::InvalidHand(e.to_string()))?;
         let (base_chips, base_mult) = poker_hand.hand_value();
         self.add_explanation(format!("{:?} ({} x {})", poker_hand, base_chips, base_mult));
 
         // Step 2: Get scoring cards
-        // Collect into a Vec to end the immutable borrow of self
-        let scoring_cards: Vec<Card> = self.get_scoring_cards(&poker_hand).to_vec();
+        let scoring_cards: Vec<Card> = get_scoring_cards(&poker_hand, &self.round.cards_played);
 
         // Step 3: Initialize with base values
         let mut chips = base_chips;
@@ -75,6 +75,6 @@ impl GameState {
 
         self.chips = chips;
         self.mult = mult;
-        (self.chips, self.mult)
+        Ok((self.chips, self.mult))
     }
 }
