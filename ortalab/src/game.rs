@@ -73,6 +73,12 @@ impl GameState {
             ));
 
             // Apply card enhancements if present
+            if card.enhancement.is_some() {
+                let explanations = apply_enhancement(&card, &mut chips, &mut mult)?;
+                for explanation in explanations {
+                    self.add_explanation(explanation);
+                }
+            }
             if let Some(enhancement) = card.enhancement {
                 let explanations = apply_enhancement(&card, &mut chips, &mut mult)?;
                 for explanation in explanations {

@@ -67,6 +67,9 @@ fn score(round: Round, explain: bool) -> (Chips, Mult) {
             println!("{}", (chips * mult).floor());
             (chips, mult)
         }
-        Err(e) => panic!("Game error: {}", e),
+        Err(e) => {
+            eprintln!("Game error: {}", e);
+            (0.0, 0.0)
+        }
     }
 }

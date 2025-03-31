@@ -32,6 +32,7 @@ fn is_sequential(cards: &[Card]) -> bool {
     // get ranks and sort them
     let mut ranks: Vec<Rank> = cards.iter().map(|card| card.rank).collect();
     ranks.sort();
+    ranks.dedup(); // Remove duplicates for checking sequence
 
     // Special case: check for A-5 straight (Ace is low)
     if ranks[0] == Rank::Two

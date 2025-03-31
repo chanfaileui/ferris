@@ -32,10 +32,36 @@ pub fn apply_enhancement(
     Ok(explanations)
 }
 
-pub fn apply_edition(
+pub fn apply_edition(card: &Card, chips: &mut Chips, mult: &mut Mult) -> GameResult<Vec<String>> {
+    let mut explanations = Vec::new();
+    match card.edition {
+        Some(Edition::Foil) => {
+            *chips += 50.0;
+            explanations.push(format!("{} +50 Chips ({} x {})", card, *chips, *mult));
+        }
+        Some(Edition::Holographic) => {
+            *mult += 10.0;
+            explanations.push(format!("{} +10 Mult ({} x {})", card, *chips, *mult));
+        }
+        Some(Edition::Polychrome) => {
+            *mult *= 1.5;
+            explanations.push(format!("{} x1.5 Mult ({} x {})", card, *chips, *mult));
+        }
+        None => (),
+    }
+    Ok(explanations)
+}
+
+// Function to handle Steel enhancement for cards held in hand
+pub fn apply_steel_enhancement(
     card: &Card,
     chips: &mut Chips,
     mult: &mut Mult,
-) -> GameResult<Vec<String>>  {
-    todo!()
+) -> GameResult<Vec<String>> {
+    let mut explanations = Vec::new();
+    if let Some(Enhancement::Steel) = card.enhancement {
+        *mult *= 1.5;
+        explanations.push(format!("{} Steel x1.5 Mult ({} x {})", card, *chips, *mult));
+    }
+    Ok(explanations)
 }
