@@ -1,33 +1,66 @@
+// src/jokers/basic.rs
 use crate::errors::GameResult;
-use ortalib::{Card, Chips, Edition, Enhancement, Mult};
+use crate::game::GameState;
+use crate::jokers::ActivationType;
+use crate::jokers::JokerEffect;
+use ortalib::JokerCard;
 
-pub fn apply_joker(
-    card: &Card,
-    chips: &mut Chips,
-    mult: &mut Mult,
-) -> GameResult<Vec<String>> {
-    let mut explanations = Vec::new();
-    match card.enhancement {
-        Some(Enhancement::Bonus) => {
-            *chips += 30.0;
-            explanations.push(format!("{} +30 Chips ({} x {})", card, *chips, *mult));
-        }
-        Some(Enhancement::Mult) => {
-            *mult += 4.0;
-            explanations.push(format!("{} +4 Mult ({} x {})", card, *chips, *mult));
-        }
-        Some(Enhancement::Glass) => {
-            *mult *= 2.0;
-            explanations.push(format!("{} x2 Mult ({} x {})", card, *chips, *mult));
-        }
-        Some(Enhancement::Steel) => {
-            // ✖️ Mult×1.5 if this card is held in hand
-            // This is handled elsewhere for cards held in hand
-        }
-        Some(Enhancement::Wild) => {
-            // Wild card effects are handled during hand identification
-        }
-        None => (),
-    }
-    Ok(explanations)
-}
+// ✖ Mult +4
+pub struct Joker;
+
+impl JokerEffect for Joker {}
+
+// ✖ Mult +8 if cards played contains a Pair
+pub struct JollyJoker;
+
+impl JokerEffect for JollyJoker {}
+
+// ✖ Mult +12 if cards played contains a Three of a Kind
+pub struct ZanyJoker;
+
+impl JokerEffect for ZanyJoker {}
+
+// ✖ Mult +10 if cards played contains a Two Pair
+pub struct MadJoker;
+
+impl JokerEffect for MadJoker {}
+
+// ✖ Mult +12 if cards played contains a Straight
+pub struct CrazyJoker;
+
+impl JokerEffect for CrazyJoker {}
+
+// ✖ Mult +10 if cards played contains a Flush
+pub struct DrollJoker;
+
+impl JokerEffect for DrollJoker {}
+
+// 🪙 Chips +50 if cards played contains a Pair
+pub struct SlyJoker;
+
+impl JokerEffect for SlyJoker {}
+
+// 🪙 Chips +100 if cards played contains a Three of a Kind
+pub struct WilyJoker;
+
+impl JokerEffect for WilyJoker {}
+
+// 🪙 Chips +80 if cards played contains a Two Pair
+pub struct CleverJoker;
+
+impl JokerEffect for CleverJoker {}
+
+// 🪙 Chips +100 if cards played contains a Straight
+pub struct DeviousJoker;
+
+impl JokerEffect for DeviousJoker {}
+
+// 🪙 Chips +80 if cards played contains a Flush
+pub struct CraftyJoker;
+
+impl JokerEffect for CraftyJoker {}
+
+// ✖ Mult +3 for each Joker card
+pub struct AbstractJoker;
+
+impl JokerEffect for AbstractJoker {}
