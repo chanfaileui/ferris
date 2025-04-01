@@ -1,7 +1,7 @@
 use crate::errors::{GameError, GameResult};
-use crate::jokers;
 use crate::modifiers::{apply_edition, apply_enhancement, apply_steel_enhancement};
 use crate::poker::{analyze_hand_conditions, get_scoring_cards, identify_hand};
+use crate::{game, jokers};
 
 use crate::explain_dbg;
 
@@ -66,12 +66,79 @@ impl GameState {
     }
 
     /// Process "OnScored" jokers for a specific card
-    fn process_on_scored_jokers(card: &Card) -> GameResult<()> {
-        todo!()
+    fn process_on_scored_jokers(&mut self, card: &Card) -> GameResult<()> {
+        // Get applicable jokers
+        let applicable_jokers: Vec<_> = self
+            .round
+            .jokers
+            .iter()
+            .filter(|joker_card| {
+                let effect = jokers::create_joker_effect(joker_card.joker);
+                effect.activation_type() == jokers::ActivationType::OnScored
+                    && effect.can_apply(self)
+            })
+            .collect();
+
+        // Apply each applicable joker
+        for joker_card in &applicable_jokers {
+            let effect = jokers::create_joker_effect(joker_card.joker);
+            effect.apply(
+                joker_card,
+                &mut self.chips,
+                &mut self.mult,
+                self.explain_enabled,
+            )?;
+        }
+
+        // Handle retriggers if needed
+        if self.sock_and_buskin_retriggers > 0 && card.rank.is_face() {
+            let retrigger_count = self.sock_and_buskin_retriggers;
+            self.sock_and_buskin_retriggers = 0;
+
+            for _ in 0..retrigger_count {
+                // Reapply base card effects
+                let rank_chips = card.rank.rank_value();
+                self.chips += rank_chips;
+                explain_dbg!(
+                    self,
+                    "Retrigger: {} +{} Chips ({} x {})",
+                    card,
+                    rank_chips,
+                    self.chips,
+                    self.mult
+                );
+
+                // Reapply enhancements and editions
+                if card.enhancement.is_some() {
+                    apply_enhancement(
+                        &card,
+                        &mut self.chips,
+                        &mut self.mult,
+                        self.explain_enabled,
+                    )?;
+                }
+                if card.edition.is_some() {
+                    apply_edition(&card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
+                }
+
+                // Reapply jokers without allowing further retriggers
+                for joker_card in &applicable_jokers {
+                    let effect = jokers::create_joker_effect(joker_card.joker);
+                    effect.apply(
+                        joker_card,
+                        &mut self.chips,
+                        &mut self.mult,
+                        self.explain_enabled,
+                    )?;
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Process "OnHeld" jokers for a specific card
-    fn process_on_held_jokers(card: &Card) -> GameResult<()> {
+    fn process_on_held_jokers(&mut self, card: &Card) -> GameResult<()> {
         todo!()
     }
 
@@ -104,16 +171,16 @@ impl GameState {
         self.contains_flush = conditions.contains_flush;
 
         // Step 4: Determine scoring cards
-        if self.splash_active {
+        self.scoring_cards = if self.splash_active {
             // With Splash joker, all played cards score
-            self.scoring_cards = self.round.cards_played.clone(); // TODO: cheat clone is this ok?
+            self.round.cards_played.to_vec()
         } else {
             // Otherwise, only cards that form the poker hand
-            self.scoring_cards = get_scoring_cards(&poker_hand, &self.round.cards_played);
-        }
+            get_scoring_cards(&poker_hand, &self.round.cards_played)
+        };
 
         // Step 4: Process each card separately
-        for card in &self.scoring_cards {
+        for card in self.scoring_cards.iter().copied().collect::<Vec<Card>>() {
             let rank_chips: f64 = card.rank.rank_value();
             self.chips += rank_chips;
 
@@ -141,15 +208,23 @@ impl GameState {
         }
 
         // Step 5: Process cards held in hand
-        for card in &self.round.cards_held_in_hand {
-            if let Some(Enhancement::Steel) = card.enhancement {
+        for card in self
+            .round
+            .cards_held_in_hand
+            .iter()
+            .copied()
+            .collect::<Vec<Card>>()
+        {
+            if let Some(Enhancement::Steel) = &card.enhancement {
                 apply_steel_enhancement(
-                    card,
+                    &card,
                     &mut self.chips,
                     &mut self.mult,
                     self.explain_enabled,
                 )?;
             }
+            // Process "OnHeld" jokers for this card
+            self.process_on_held_jokers(&card)?;
         }
 
         // Step 6: Process jokers (independent activation)

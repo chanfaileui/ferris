@@ -2,7 +2,7 @@ pub mod basic;
 pub mod complex;
 pub mod medium;
 
-use ortalib::{Edition, Joker, JokerCard};
+use ortalib::{Chips, Edition, Joker, JokerCard, Mult};
 
 use crate::{errors::GameResult, game::GameState};
 
@@ -21,7 +21,13 @@ pub trait JokerEffect {
     /// The type of activation for this joker
     fn activation_type(&self) -> ActivationType;
     /// Apply the joker's effect to the game state
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()>;
+    fn apply(
+        &self,
+        joker_card: &JokerCard,
+        chips: &mut Chips,
+        mult: &mut Mult,
+        explain_enabled: bool,
+    ) -> GameResult<()>;
 
     /// Optional method for checking if a joker can be applied
     fn can_apply(&self, _game_state: &GameState) -> bool {
@@ -75,36 +81,41 @@ pub fn create_joker_effect(joker: Joker) -> Box<dyn JokerEffect> {
 }
 
 /// Processes joker editions
-pub fn apply_joker_edition(joker_card: &JokerCard, game_state: &mut GameState) -> GameResult<()> {
+pub fn apply_joker_edition(
+    joker_card: &JokerCard,
+    chips: &mut Chips,
+    mult: &mut Mult,
+    explain_enabled: bool,
+) -> GameResult<()> {
     match joker_card.edition {
         Some(Edition::Foil) => {
-            game_state.chips += 50.0;
+            *chips += 50.0;
             explain_dbg!(
-                game_state,
+                explain_enabled,
                 "{} Foil +50 Chips ({} x {})",
                 joker_card.joker,
-                game_state.chips,
-                game_state.mult
+                chips,
+                mult
             );
         }
         Some(Edition::Holographic) => {
-            game_state.mult += 10.0;
+            *mult += 10.0;
             explain_dbg!(
-                game_state,
+                explain_enabled,
                 "{} Holographic +10 Mult ({} x {})",
                 joker_card.joker,
-                game_state.chips,
-                game_state.mult
+                chips,
+                mult
             );
         }
         Some(Edition::Polychrome) => {
-            game_state.mult *= 1.5;
+            *mult *= 1.5;
             explain_dbg!(
-                game_state,
+                explain_enabled,
                 "{} Polychrome x1.5 Mult ({} x {})",
                 joker_card.joker,
-                game_state.chips,
-                game_state.mult
+                chips,
+                mult
             );
         }
         None => (),
@@ -115,25 +126,40 @@ pub fn apply_joker_edition(joker_card: &JokerCard, game_state: &mut GameState) -
 /// Helper function to apply joker effects in the proper order
 pub fn process_jokers(game_state: &mut GameState) -> GameResult<()> {
     // Stage 1: Process joker editions (Foil, Holographic) before independent activation
-    for joker_card in game_state.round.jokers.iter().copied().collect::<Vec<_>>() {
+    for joker_card in &game_state.round.jokers {
         if let Some(Edition::Foil) | Some(Edition::Holographic) = joker_card.edition {
-            apply_joker_edition(&joker_card, game_state)?;
+            apply_joker_edition(
+                joker_card,
+                &mut game_state.chips,
+                &mut game_state.mult,
+                game_state.explain_enabled,
+            )?;
         }
     }
     // Stage 2: Process independent jokers
-    for joker_card in &game_state.round.jokers.clone() {
+    for joker_card in &game_state.round.jokers {
         let joker_effect = create_joker_effect(joker_card.joker);
 
         if joker_effect.activation_type() == ActivationType::Independent
             && joker_effect.can_apply(game_state)
         {
-            joker_effect.apply(game_state, joker_card)?;
+            joker_effect.apply(
+                joker_card,
+                &mut game_state.chips,
+                &mut game_state.mult,
+                game_state.explain_enabled,
+            )?;
         }
     }
     // Stage 3: Process Polychrome editions after all jokers have been applied
-    for joker_card in &game_state.round.jokers.clone() {
+    for joker_card in &game_state.round.jokers {
         if let Some(Edition::Polychrome) = joker_card.edition {
-            apply_joker_edition(&joker_card, game_state)?;
+            apply_joker_edition(
+                joker_card,
+                &mut game_state.chips,
+                &mut game_state.mult,
+                game_state.explain_enabled,
+            )?;
         }
     }
 

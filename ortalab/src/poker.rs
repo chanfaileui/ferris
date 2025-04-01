@@ -213,7 +213,7 @@ pub fn get_scoring_cards(hand_type: &PokerHand, cards: &[Card]) -> Vec<Card> {
         PokerHand::HighCard => {
             // For high card, only the highest card scores
             let rank_map: IndexMap<Rank, Vec<&Card>> = group_by_rank(cards);
-            let mut ranks: Vec<Rank> = rank_map.keys().cloned().collect();
+            let mut ranks: Vec<Rank> = rank_map.keys().copied().collect();
             ranks.sort_by(|a: &Rank, b: &Rank| b.cmp(a)); // Sort in descending order
 
             // Get the highest rank's cards
