@@ -1,4 +1,4 @@
-use crate::errors::GameResult;
+use crate::{errors::GameResult, game::GameState};
 use enum_iterator::Sequence;
 // use itertools::Itertools;
 use indexmap::IndexMap;
@@ -290,4 +290,52 @@ pub fn get_scoring_cards(hand_type: &PokerHand, cards: &[Card]) -> Vec<Card> {
         | PokerHand::Flush
         | PokerHand::FullHouse => cards.to_vec(),
     }
+}
+
+#[derive(Debug, Default)]
+pub struct HandConditions {
+    pub contains_pair: bool,
+    pub contains_two_pair: bool,
+    pub contains_three_of_a_kind: bool,
+    pub contains_straight: bool,
+    pub contains_flush: bool,
+}
+
+/// Analyzes a hand of cards to determine what poker hand conditions exist
+/// This is useful for jokers that activate based on the presence of certain hand conditions
+pub fn analyze_hand_conditions(
+    cards: &[Card],
+    game_state: &GameState,
+) -> GameResult<HandConditions> {
+    let mut conditions = HandConditions::default();
+
+    // Analyze ranks to find pairs and three-of-a-kinds
+    let mut rank_counts = std::collections::HashMap::new();
+    for card in cards {
+        *rank_counts.entry(card.rank).or_insert(0) += 1;
+    }
+
+    // Check for pairs and three-of-a-kinds
+    let mut different_pairs = std::collections::HashSet::new();
+
+    for (&rank, &count) in &rank_counts {
+        if count >= 2 {
+            conditions.contains_pair = true;
+            different_pairs.insert(rank);
+        }
+        if count >= 3 {
+            conditions.contains_three_of_a_kind = true;
+        }
+    }
+
+    // Two Pair requires two different ranks with pairs
+    conditions.contains_two_pair = different_pairs.len() >= 2;
+
+    // Check for straight
+    conditions.contains_straight = is_sequential(cards);
+
+    // Check for flush
+    conditions.contains_flush = is_flush(cards);
+
+    Ok(conditions)
 }

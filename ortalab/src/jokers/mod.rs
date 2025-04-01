@@ -6,6 +6,8 @@ use ortalib::{Chips, Edition, Joker, JokerCard, Mult};
 
 use crate::{errors::GameResult, game::GameState};
 
+use crate::explain_dbg;
+
 // pub use self::basic::BasicJoker;
 // pub use self::complex::ComplexJoker;
 // pub use self::medium::MediumJoker;
@@ -49,103 +51,98 @@ pub fn create_joker_effect(joker: Joker) -> Box<dyn JokerEffect> {
         Joker::CraftyJoker => Box::new(basic::CraftyJoker),
         Joker::AbstractJoker => Box::new(basic::AbstractJoker),
 
-        // Stage 4 - Medium jokers
-        Joker::RaisedFist => Box::new(medium::RaisedFist),
-        Joker::Blackboard => Box::new(medium::Blackboard),
-        Joker::Baron => Box::new(medium::Baron),
-        Joker::GreedyJoker => Box::new(medium::GreedyJoker),
-        Joker::LustyJoker => Box::new(medium::LustyJoker),
-        Joker::WrathfulJoker => Box::new(medium::WrathfulJoker),
-        Joker::GluttonousJoker => Box::new(medium::GluttonousJoker),
-        Joker::Fibonacci => Box::new(medium::Fibonacci),
-        Joker::ScaryFace => Box::new(medium::ScaryFace),
-        Joker::EvenSteven => Box::new(medium::EvenSteven),
-        Joker::OddTodd => Box::new(medium::OddTodd),
-        Joker::Photograph => Box::new(medium::Photograph),
-        Joker::SmileyFace => Box::new(medium::SmileyFace),
-        Joker::FlowerPot => Box::new(medium::FlowerPot),
+        _ => todo!(),
+        // // Stage 4 - Medium jokers
+        // Joker::RaisedFist => Box::new(medium::RaisedFist),
+        // Joker::Blackboard => Box::new(medium::Blackboard),
+        // Joker::Baron => Box::new(medium::Baron),
+        // Joker::GreedyJoker => Box::new(medium::GreedyJoker),
+        // Joker::LustyJoker => Box::new(medium::LustyJoker),
+        // Joker::WrathfulJoker => Box::new(medium::WrathfulJoker),
+        // Joker::GluttonousJoker => Box::new(medium::GluttonousJoker),
+        // Joker::Fibonacci => Box::new(medium::Fibonacci),
+        // Joker::ScaryFace => Box::new(medium::ScaryFace),
+        // Joker::EvenSteven => Box::new(medium::EvenSteven),
+        // Joker::OddTodd => Box::new(medium::OddTodd),
+        // Joker::Photograph => Box::new(medium::Photograph),
+        // Joker::SmileyFace => Box::new(medium::SmileyFace),
+        // Joker::FlowerPot => Box::new(medium::FlowerPot),
 
-        // Stage 5 - Complex jokers
-        Joker::FourFingers => Box::new(complex::FourFingers),
-        Joker::Shortcut => Box::new(complex::Shortcut),
-        Joker::Mime => Box::new(complex::Mime),
-        Joker::Pareidolia => Box::new(complex::Pareidolia),
-        Joker::Splash => Box::new(complex::Splash),
-        Joker::SockAndBuskin => Box::new(complex::SockAndBuskin),
-        Joker::SmearedJoker => Box::new(complex::SmearedJoker),
-        Joker::Blueprint => Box::new(complex::Blueprint),
+        // // Stage 5 - Complex jokers
+        // Joker::FourFingers => Box::new(complex::FourFingers),
+        // Joker::Shortcut => Box::new(complex::Shortcut),
+        // Joker::Mime => Box::new(complex::Mime),
+        // Joker::Pareidolia => Box::new(complex::Pareidolia),
+        // Joker::Splash => Box::new(complex::Splash),
+        // Joker::SockAndBuskin => Box::new(complex::SockAndBuskin),
+        // Joker::SmearedJoker => Box::new(complex::SmearedJoker),
+        // Joker::Blueprint => Box::new(complex::Blueprint),
     }
 }
 
 /// Processes joker editions
-pub fn apply_joker_edition(
-    joker_card: &JokerCard,
-    chips: &mut Chips,
-    mult: &mut Mult,
-) -> GameResult<Vec<String>> {
-    let mut explanations = Vec::new();
-
+pub fn apply_joker_edition(joker_card: &JokerCard, game_state: &mut GameState) -> GameResult<()> {
     match joker_card.edition {
         Some(Edition::Foil) => {
-            *chips += 50.0;
-            explanations.push(format!(
+            game_state.chips += 50.0;
+            explain_dbg!(
+                game_state,
                 "{} Foil +50 Chips ({} x {})",
-                joker_card.joker, chips, mult
-            ));
+                joker_card.joker,
+                game_state.chips,
+                game_state.mult
+            );
         }
         Some(Edition::Holographic) => {
-            *mult += 10.0;
-            explanations.push(format!(
+            game_state.mult += 10.0;
+            explain_dbg!(
+                game_state,
                 "{} Holographic +10 Mult ({} x {})",
-                joker_card.joker, chips, mult
-            ));
+                joker_card.joker,
+                game_state.chips,
+                game_state.mult
+            );
         }
         Some(Edition::Polychrome) => {
-            *mult *= 1.5;
-            explanations.push(format!(
+            game_state.mult *= 1.5;
+            explain_dbg!(
+                game_state,
                 "{} Polychrome x1.5 Mult ({} x {})",
-                joker_card.joker, chips, mult
-            ));
+                joker_card.joker,
+                game_state.chips,
+                game_state.mult
+            );
         }
         None => (),
     }
-    Ok(explanations)
+    Ok(())
 }
 
 /// Helper function to apply joker effects in the proper order
-pub fn process_jokers(game_state: &mut GameState) -> GameResult<Vec<String>> {
-    let mut explanations = Vec::new();
-
+pub fn process_jokers(game_state: &mut GameState) -> GameResult<()> {
     // Stage 1: Process joker editions (Foil, Holographic) before independent activation
-    for joker_card in &game_state.round.jokers {
+    for joker_card in &game_state.round.jokers.clone() {
         if let Some(Edition::Foil) | Some(Edition::Holographic) = joker_card.edition {
-            let joker_edition_explanations =
-                apply_joker_edition(joker_card, &mut game_state.chips, &mut game_state.mult)?;
-            explanations.extend(joker_edition_explanations);
+            apply_joker_edition(joker_card, game_state)?;
         }
     }
-
     // Stage 2: Process independent jokers
-    let joker_cards = game_state.round.jokers.clone(); // Clone the entire joker collection once
+    let joker_cards = game_state.round.jokers.clone();
     for joker_card in &joker_cards {
         let joker_effect = create_joker_effect(joker_card.joker);
 
-        let can_apply = joker_effect.activation_type() == ActivationType::Independent
-            && joker_effect.can_apply(&game_state);
-        if can_apply {
-            let joker_effect_explanations = joker_effect.apply(game_state, joker_card)?;
-            explanations.extend(joker_effect_explanations);
+        if joker_effect.activation_type() == ActivationType::Independent
+            && joker_effect.can_apply(game_state)
+        {
+            joker_effect.apply(game_state, joker_card)?;
         }
     }
-
     // Stage 3: Process Polychrome editions after all jokers have been applied
-    for joker_card in &game_state.round.jokers {
+    for joker_card in &game_state.round.jokers.clone() {
         if let Some(Edition::Polychrome) = joker_card.edition {
-            let joker_edition_explanations =
-                apply_joker_edition(joker_card, &mut game_state.chips, &mut game_state.mult)?;
-            explanations.extend(joker_edition_explanations);
+            apply_joker_edition(joker_card, game_state)?;
         }
     }
 
-    Ok(explanations)
+    Ok(())
 }
