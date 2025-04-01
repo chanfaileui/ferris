@@ -3,6 +3,8 @@ use crate::jokers;
 use crate::modifiers::{apply_edition, apply_enhancement, apply_steel_enhancement};
 use crate::poker::{get_scoring_cards, identify_hand};
 
+use crate::explain_dbg;
+
 // Import from external crates
 use ortalib::{Card, Chips, Enhancement, Mult, PokerHand, Round};
 
@@ -81,13 +83,39 @@ impl GameState {
     fn analyze_hand_conditions(&mut self) -> GameResult<()> {
         let cards = &self.round.cards_played;
 
-        let analyze_ranks = |cards: &[Card]| todo!();
+        // Helper for determining if ranks contain specific patterns
+        let analyze_ranks = |cards: &[Card]| {
+            let mut rank_counts = std::collections::HashMap::new();
+            for card in cards {
+                *rank_counts.entry(card.rank).or_insert(0) += 1;
+            }
 
+            // Check for pairs and three-of-a-kinds
+            let mut has_pair = false;
+            let mut has_three = false;
+            let mut pair_count = 0;
+            let mut different_pairs = std::collections::HashSet::new();
+
+            for (&rank, &count) in &rank_counts {
+                if count >= 2 {
+                    has_pair = true;
+                    different_pairs.insert(rank);
+                    pair_count += 1;
+                }
+                if count >= 3 {
+                    has_three = true;
+                }
+            }
+
+            (has_pair, different_pairs.len() >= 2, has_three)
+        };
+
+        // Check if hand contains a straight
         let contains_straight = |cards: &[Card], shortcut_active: bool| -> bool {
             // Implementation would check for straights
             // Including logic for the Shortcut joker if active
-            // This is a simplified placeholder
-            false // Placeholder
+            
+            
         };
 
         // Check if hand contains a flush
@@ -95,7 +123,7 @@ impl GameState {
             // Implementation would check for flushes
             // Including logic for the Smeared Joker if active
             // This is a simplified placeholder
-            false // Placeholder
+            false // Placeholder  
         };
 
         // Analyze the hand
@@ -154,14 +182,13 @@ impl GameState {
         // Step 4: Determine scoring cards
         if self.splash_active {
             // With Splash joker, all played cards score
-            self.scoring_cards = self.round.cards_played.clone();
+            self.scoring_cards = self.round.cards_played.clone(); // TODO: clone is this ok?
         } else {
             // Otherwise, only cards that form the poker hand
             self.scoring_cards = get_scoring_cards(&poker_hand, &self.round.cards_played);
         }
 
-
-        // Step 4: Process each card separately to avoid borrowing conflicts
+        // Step 4: Process each card separately
         for card in &self.scoring_cards {
             let rank_chips: f64 = card.rank.rank_value();
             chips += rank_chips;
@@ -197,7 +224,8 @@ impl GameState {
         }
 
         // Step 6: Process jokers (independent activation)
-        jokers::process_jokers(self)?;
+        let joker_explanations = jokers::process_jokers(self)?;
+        explanations.extend(joker_explanations);
 
         // Step 7: Save and mutate explanantion, chips, mult
         for explanation in explanations {

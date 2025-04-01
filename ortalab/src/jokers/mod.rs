@@ -23,9 +23,8 @@ pub enum ActivationType {
 pub trait JokerEffect {
     /// The type of activation for this joker
     fn activation_type(&self) -> ActivationType;
-
     /// Apply the joker's effect to the game state
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<Vec<String>>;
+    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()>;
 
     /// Optional method for checking if a joker can be applied
     fn can_apply(&self, game_state: &GameState) -> bool {
@@ -81,35 +80,35 @@ pub fn create_joker_effect(joker: Joker) -> Box<dyn JokerEffect> {
 /// Processes joker editions
 pub fn apply_joker_edition(
     joker_card: &JokerCard,
-    game_state: &mut GameState,
+    chips: &mut Chips,
+    mult: &mut Mult,
 ) -> GameResult<Vec<String>> {
     let mut explanations = Vec::new();
 
     match joker_card.edition {
         Some(Edition::Foil) => {
-            game_state.chips += 50.0;
+            *chips += 50.0;
             explanations.push(format!(
                 "{} Foil +50 Chips ({} x {})",
-                joker_card.joker, game_state.chips, game_state.mult
+                joker_card.joker, chips, mult
             ));
         }
         Some(Edition::Holographic) => {
-            game_state.mult += 10.0;
+            *mult += 10.0;
             explanations.push(format!(
                 "{} Holographic +10 Mult ({} x {})",
-                joker_card.joker, game_state.chips, game_state.mult
+                joker_card.joker, chips, mult
             ));
         }
         Some(Edition::Polychrome) => {
-            game_state.mult *= 1.5;
+            *mult *= 1.5;
             explanations.push(format!(
                 "{} Polychrome x1.5 Mult ({} x {})",
-                joker_card.joker, game_state.chips, game_state.mult
+                joker_card.joker, chips, mult
             ));
         }
-        None => {}
+        None => (),
     }
-
     Ok(explanations)
 }
 
@@ -120,18 +119,20 @@ pub fn process_jokers(game_state: &mut GameState) -> GameResult<Vec<String>> {
     // Stage 1: Process joker editions (Foil, Holographic) before independent activation
     for joker_card in &game_state.round.jokers {
         if let Some(Edition::Foil) | Some(Edition::Holographic) = joker_card.edition {
-            let joker_edition_explanations = apply_joker_edition(joker_card, game_state)?;
+            let joker_edition_explanations =
+                apply_joker_edition(joker_card, &mut game_state.chips, &mut game_state.mult)?;
             explanations.extend(joker_edition_explanations);
         }
     }
 
     // Stage 2: Process independent jokers
-    for joker_card in &game_state.round.jokers {
+    let joker_cards = game_state.round.jokers.clone(); // Clone the entire joker collection once
+    for joker_card in &joker_cards {
         let joker_effect = create_joker_effect(joker_card.joker);
 
-        if joker_effect.activation_type() == ActivationType::Independent
-            && joker_effect.can_apply(game_state)
-        {
+        let can_apply = joker_effect.activation_type() == ActivationType::Independent
+            && joker_effect.can_apply(&game_state);
+        if can_apply {
             let joker_effect_explanations = joker_effect.apply(game_state, joker_card)?;
             explanations.extend(joker_effect_explanations);
         }
@@ -140,7 +141,8 @@ pub fn process_jokers(game_state: &mut GameState) -> GameResult<Vec<String>> {
     // Stage 3: Process Polychrome editions after all jokers have been applied
     for joker_card in &game_state.round.jokers {
         if let Some(Edition::Polychrome) = joker_card.edition {
-            let joker_edition_explanations = apply_joker_edition(joker_card, game_state)?;
+            let joker_edition_explanations =
+                apply_joker_edition(joker_card, &mut game_state.chips, &mut game_state.mult)?;
             explanations.extend(joker_edition_explanations);
         }
     }

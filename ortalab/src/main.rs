@@ -3,6 +3,7 @@ mod game;
 mod modifiers;
 mod poker;
 mod jokers;
+mod debug;
 
 // use clap::Parser;
 // use errors::GameResult;
