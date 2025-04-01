@@ -35,7 +35,7 @@ pub struct GameState {
     pub sock_and_buskin_retriggers: usize, // Number of Sock and Buskin retriggers
 
     // Used for tracking Photograph joker
-    pub first_face_card_processed: bool,
+    // pub first_face_card_processed: bool,
 }
 
 impl GameState {
@@ -61,7 +61,7 @@ impl GameState {
 
             mime_retriggers: 0,
             sock_and_buskin_retriggers: 0,
-            first_face_card_processed: false,
+            // first_face_card_processed: false,
         }
     }
 
@@ -106,15 +106,10 @@ impl GameState {
 
                 // Reapply enhancements and editions
                 if card.enhancement.is_some() {
-                    apply_enhancement(
-                        &card,
-                        &mut self.chips,
-                        &mut self.mult,
-                        self.explain_enabled,
-                    )?;
+                    apply_enhancement(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
                 }
                 if card.edition.is_some() {
-                    apply_edition(&card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
+                    apply_edition(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
                 }
 
                 // Reapply jokers without allowing further retriggers
@@ -129,8 +124,61 @@ impl GameState {
     }
 
     /// Process "OnHeld" jokers for a specific card
+    /// TODO: PLEASE CHECK IF IT ACTUALLY WORKS
     fn process_on_held_jokers(&mut self, card: &Card) -> GameResult<()> {
-        todo!()
+        // Get applicable jokers
+        let applicable_jokers: Vec<_> = self
+            .round
+            .jokers
+            .iter()
+            .filter(|joker_card| {
+                let effect = jokers::create_joker_effect(joker_card.joker);
+                effect.activation_type() == jokers::ActivationType::OnHeld && effect.can_apply(self)
+            })
+            .copied()
+            .collect();
+
+        // Apply each applicable joker
+        for joker_card in &applicable_jokers {
+            let effect = jokers::create_joker_effect(joker_card.joker);
+            effect.apply(self, joker_card)?;
+        }
+
+        // Handle retriggers if needed
+        if self.sock_and_buskin_retriggers > 0 && card.rank.is_face() {
+            let retrigger_count = self.sock_and_buskin_retriggers;
+            self.sock_and_buskin_retriggers = 0;
+
+            for _ in 0..retrigger_count {
+                // Reapply base card effects
+                let rank_chips = card.rank.rank_value();
+                self.chips += rank_chips;
+                explain_dbg_bool!(
+                    self.explain_enabled,
+                    "Retrigger: {} +{} Chips ({} x {})",
+                    card,
+                    rank_chips,
+                    self.chips,
+                    self.mult
+                );
+
+                // Reapply enhancements and editions
+                if card.enhancement.is_some() {
+                    apply_enhancement(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
+                }
+                if card.edition.is_some() {
+                    apply_edition(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
+                }
+
+                // Reapply jokers without allowing further retriggers
+                for joker_card in &applicable_jokers {
+                    let effect = jokers::create_joker_effect(joker_card.joker);
+                    effect.apply(self, joker_card)?;
+                }
+            }
+        }
+
+        Ok(())
     }
 
     pub fn score(&mut self) -> GameResult<(Chips, Mult)> {
@@ -177,7 +225,7 @@ impl GameState {
         };
 
         // Step 4: Process each card separately
-        for card in self.scoring_cards.iter().copied().collect::<Vec<Card>>() {
+        for card in self.scoring_cards.clone() {
             let rank_chips: f64 = card.rank.rank_value();
             self.chips += rank_chips;
 
@@ -205,13 +253,7 @@ impl GameState {
         }
 
         // Step 5: Process cards held in hand
-        for card in self
-            .round
-            .cards_held_in_hand
-            .iter()
-            .copied()
-            .collect::<Vec<Card>>()
-        {
+        for card in self.round.cards_held_in_hand.clone() {
             if let Some(Enhancement::Steel) = &card.enhancement {
                 apply_steel_enhancement(
                     &card,

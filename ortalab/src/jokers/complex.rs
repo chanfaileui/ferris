@@ -179,7 +179,7 @@ impl JokerEffect for Blueprint {
         // Find the joker to the right
         let joker_index =
             game_state.round.jokers.iter().position(|j| {
-                j.joker == Joker::Blueprint && j as *const _ == joker_card as *const _
+                j.joker == Joker::Blueprint && std::ptr::eq(j, joker_card)
             });
 
         if let Some(index) = joker_index {

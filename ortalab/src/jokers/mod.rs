@@ -131,7 +131,7 @@ pub fn process_jokers(game_state: &mut GameState) -> GameResult<()> {
         }
     }
     // Stage 2: Process independent jokers
-    for joker_card in &game_state.round.jokers.iter().copied().collect::<Vec<_>>() {
+    for joker_card in &game_state.round.jokers.to_vec() {
         let joker_effect = create_joker_effect(joker_card.joker);
 
         if joker_effect.activation_type() == ActivationType::Independent
