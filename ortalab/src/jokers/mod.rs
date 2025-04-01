@@ -115,14 +115,13 @@ pub fn apply_joker_edition(joker_card: &JokerCard, game_state: &mut GameState) -
 /// Helper function to apply joker effects in the proper order
 pub fn process_jokers(game_state: &mut GameState) -> GameResult<()> {
     // Stage 1: Process joker editions (Foil, Holographic) before independent activation
-    for joker_card in &game_state.round.jokers.clone() {
+    for joker_card in game_state.round.jokers.iter().copied().collect::<Vec<_>>() {
         if let Some(Edition::Foil) | Some(Edition::Holographic) = joker_card.edition {
-            apply_joker_edition(joker_card, game_state)?;
+            apply_joker_edition(&joker_card, game_state)?;
         }
     }
     // Stage 2: Process independent jokers
-    let joker_cards = game_state.round.jokers.clone();
-    for joker_card in &joker_cards {
+    for joker_card in &game_state.round.jokers.clone() {
         let joker_effect = create_joker_effect(joker_card.joker);
 
         if joker_effect.activation_type() == ActivationType::Independent
@@ -134,7 +133,7 @@ pub fn process_jokers(game_state: &mut GameState) -> GameResult<()> {
     // Stage 3: Process Polychrome editions after all jokers have been applied
     for joker_card in &game_state.round.jokers.clone() {
         if let Some(Edition::Polychrome) = joker_card.edition {
-            apply_joker_edition(joker_card, game_state)?;
+            apply_joker_edition(&joker_card, game_state)?;
         }
     }
 

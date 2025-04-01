@@ -185,7 +185,7 @@ impl JokerEffect for Blueprint {
         if let Some(index) = joker_index {
             if index < game_state.round.jokers.len() - 1 {
                 // There is a joker to the right
-                let next_joker = &game_state.round.jokers[index + 1];
+                let next_joker = game_state.round.jokers[index + 1];
                 let next_joker_effect = create_joker_effect(next_joker.joker);
 
                 // Check if the next joker is compatible (not a passive modifier)

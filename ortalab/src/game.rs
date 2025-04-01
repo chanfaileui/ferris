@@ -66,12 +66,12 @@ impl GameState {
     }
 
     /// Process "OnScored" jokers for a specific card
-    fn process_on_scored_jokers(&mut self, card: &Card) -> GameResult<()> {
+    fn process_on_scored_jokers(card: &Card) -> GameResult<()> {
         todo!()
     }
 
     /// Process "OnHeld" jokers for a specific card
-    fn process_on_held_jokers(&mut self, card: &Card) -> GameResult<()> {
+    fn process_on_held_jokers(card: &Card) -> GameResult<()> {
         todo!()
     }
 
@@ -106,7 +106,7 @@ impl GameState {
         // Step 4: Determine scoring cards
         if self.splash_active {
             // With Splash joker, all played cards score
-            self.scoring_cards = self.round.cards_played.clone(); // TODO: clone is this ok?
+            self.scoring_cards = self.round.cards_played.clone(); // TODO: cheat clone is this ok?
         } else {
             // Otherwise, only cards that form the poker hand
             self.scoring_cards = get_scoring_cards(&poker_hand, &self.round.cards_played);
@@ -129,24 +129,27 @@ impl GameState {
 
             // Apply card enhancements if present
             if card.enhancement.is_some() {
-                apply_enhancement(card, &mut self.chips, &mut self.mult)?;
+                apply_enhancement(&card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
             }
 
             // Apply card editions if present
             if card.edition.is_some() {
-                apply_edition(card, &mut self.chips, &mut self.mult)?;
+                apply_edition(&card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
             }
             // Process "OnScored" jokers for this card
-            self.process_on_scored_jokers(card)?;
+            self.process_on_scored_jokers(&card)?;
         }
 
         // Step 5: Process cards held in hand
         for card in &self.round.cards_held_in_hand {
             if let Some(Enhancement::Steel) = card.enhancement {
-                apply_steel_enhancement(card, &mut self.chips, &mut self.mult)?;
+                apply_steel_enhancement(
+                    card,
+                    &mut self.chips,
+                    &mut self.mult,
+                    self.explain_enabled,
+                )?;
             }
-            // Process "OnHeld" jokers for this card
-            self.process_on_held_jokers(card)?;
         }
 
         // Step 6: Process jokers (independent activation)

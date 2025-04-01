@@ -1,24 +1,32 @@
 use crate::errors::GameResult;
 use ortalib::{Card, Chips, Edition, Enhancement, Mult};
 
+use crate::explain_dbg;
+
 pub fn apply_enhancement(
     card: &Card,
     chips: &mut Chips,
     mult: &mut Mult,
-) -> GameResult<Vec<String>> {
-    let mut explanations = Vec::new();
+    explain_enabled: bool,
+) -> GameResult<()> {
     match card.enhancement {
         Some(Enhancement::Bonus) => {
             *chips += 30.0;
-            explanations.push(format!("{} +30 Chips ({} x {})", card, *chips, *mult));
+            explain_dbg!(
+                explain_enabled,
+                "{} +30 Chips ({} x {})",
+                card,
+                *chips,
+                *mult
+            );
         }
         Some(Enhancement::Mult) => {
             *mult += 4.0;
-            explanations.push(format!("{} +4 Mult ({} x {})", card, *chips, *mult));
+            explain_dbg!(explain_enabled, "{} +4 Mult ({} x {})", card, *chips, *mult);
         }
         Some(Enhancement::Glass) => {
             *mult *= 2.0;
-            explanations.push(format!("{} x2 Mult ({} x {})", card, *chips, *mult));
+            explain_dbg!(explain_enabled, "{} x2 Mult ({} x {})", card, *chips, *mult);
         }
         Some(Enhancement::Steel) => {
             // ✖️ Mult×1.5 if this card is held in hand
@@ -29,27 +37,49 @@ pub fn apply_enhancement(
         }
         None => (),
     }
-    Ok(explanations)
+    Ok(())
 }
 
-pub fn apply_edition(card: &Card, chips: &mut Chips, mult: &mut Mult) -> GameResult<Vec<String>> {
-    let mut explanations = Vec::new();
+pub fn apply_edition(
+    card: &Card,
+    chips: &mut Chips,
+    mult: &mut Mult,
+    explain_enabled: bool,
+) -> GameResult<()> {
     match card.edition {
         Some(Edition::Foil) => {
             *chips += 50.0;
-            explanations.push(format!("{} +50 Chips ({} x {})", card, *chips, *mult));
+            explain_dbg!(
+                explain_enabled,
+                "{} +50 Chips ({} x {})",
+                card,
+                *chips,
+                *mult
+            );
         }
         Some(Edition::Holographic) => {
             *mult += 10.0;
-            explanations.push(format!("{} +10 Mult ({} x {})", card, *chips, *mult));
+            explain_dbg!(
+                explain_enabled,
+                "{} +10 Mult ({} x {})",
+                card,
+                *chips,
+                *mult
+            );
         }
         Some(Edition::Polychrome) => {
             *mult *= 1.5;
-            explanations.push(format!("{} x1.5 Mult ({} x {})", card, *chips, *mult));
+            explain_dbg!(
+                explain_enabled,
+                "{} x1.5 Mult ({} x {})",
+                card,
+                *chips,
+                *mult
+            );
         }
         None => (),
     }
-    Ok(explanations)
+    Ok(())
 }
 
 // Function to handle Steel enhancement for cards held in hand
@@ -57,11 +87,17 @@ pub fn apply_steel_enhancement(
     card: &Card,
     chips: &mut Chips,
     mult: &mut Mult,
-) -> GameResult<Vec<String>> {
-    let mut explanations = Vec::new();
+    explain_enabled: bool,
+) -> GameResult<()> {
     if let Some(Enhancement::Steel) = card.enhancement {
         *mult *= 1.5;
-        explanations.push(format!("{} x1.5 Mult ({} x {})", card, *chips, *mult));
+        explain_dbg!(
+            explain_enabled,
+            "{} x1.5 Mult ({} x {})",
+            card,
+            *chips,
+            *mult
+        );
     }
-    Ok(explanations)
+    Ok(())
 }
