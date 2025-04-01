@@ -12,8 +12,8 @@ use crate::explain_dbg;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ActivationType {
     Independent, // Activates after all cards are scored
-                 // OnScored,    // Activates when a specific card is scored
-                 // OnHeld,      // Activates based on cards held in hand
+    OnScored,    // Activates when a specific card is scored
+    OnHeld,      // Activates based on cards held in hand
 }
 
 /// Core trait for all joker effects
@@ -46,32 +46,31 @@ pub fn create_joker_effect(joker: Joker) -> Box<dyn JokerEffect> {
         Joker::CraftyJoker => Box::new(basic::CraftyJoker),
         Joker::AbstractJoker => Box::new(basic::AbstractJoker),
 
-        _ => todo!(),
-        // // Stage 4 - Medium jokers
-        // Joker::RaisedFist => Box::new(medium::RaisedFist),
-        // Joker::Blackboard => Box::new(medium::Blackboard),
-        // Joker::Baron => Box::new(medium::Baron),
-        // Joker::GreedyJoker => Box::new(medium::GreedyJoker),
-        // Joker::LustyJoker => Box::new(medium::LustyJoker),
-        // Joker::WrathfulJoker => Box::new(medium::WrathfulJoker),
-        // Joker::GluttonousJoker => Box::new(medium::GluttonousJoker),
-        // Joker::Fibonacci => Box::new(medium::Fibonacci),
-        // Joker::ScaryFace => Box::new(medium::ScaryFace),
-        // Joker::EvenSteven => Box::new(medium::EvenSteven),
-        // Joker::OddTodd => Box::new(medium::OddTodd),
-        // Joker::Photograph => Box::new(medium::Photograph),
-        // Joker::SmileyFace => Box::new(medium::SmileyFace),
-        // Joker::FlowerPot => Box::new(medium::FlowerPot),
+        // Stage 4 - Medium jokers
+        Joker::RaisedFist => Box::new(medium::RaisedFist),
+        Joker::Blackboard => Box::new(medium::Blackboard),
+        Joker::Baron => Box::new(medium::Baron),
+        Joker::GreedyJoker => Box::new(medium::GreedyJoker),
+        Joker::LustyJoker => Box::new(medium::LustyJoker),
+        Joker::WrathfulJoker => Box::new(medium::WrathfulJoker),
+        Joker::GluttonousJoker => Box::new(medium::GluttonousJoker),
+        Joker::Fibonacci => Box::new(medium::Fibonacci),
+        Joker::ScaryFace => Box::new(medium::ScaryFace),
+        Joker::EvenSteven => Box::new(medium::EvenSteven),
+        Joker::OddTodd => Box::new(medium::OddTodd),
+        Joker::Photograph => Box::new(medium::Photograph),
+        Joker::SmileyFace => Box::new(medium::SmileyFace),
+        Joker::FlowerPot => Box::new(medium::FlowerPot),
 
-        // // Stage 5 - Complex jokers
-        // Joker::FourFingers => Box::new(complex::FourFingers),
-        // Joker::Shortcut => Box::new(complex::Shortcut),
-        // Joker::Mime => Box::new(complex::Mime),
-        // Joker::Pareidolia => Box::new(complex::Pareidolia),
-        // Joker::Splash => Box::new(complex::Splash),
-        // Joker::SockAndBuskin => Box::new(complex::SockAndBuskin),
-        // Joker::SmearedJoker => Box::new(complex::SmearedJoker),
-        // Joker::Blueprint => Box::new(complex::Blueprint),
+        // Stage 5 - Complex jokers
+        Joker::FourFingers => Box::new(complex::FourFingers),
+        Joker::Shortcut => Box::new(complex::Shortcut),
+        Joker::Mime => Box::new(complex::Mime),
+        Joker::Pareidolia => Box::new(complex::Pareidolia),
+        Joker::Splash => Box::new(complex::Splash),
+        Joker::SockAndBuskin => Box::new(complex::SockAndBuskin),
+        Joker::SmearedJoker => Box::new(complex::SmearedJoker),
+        Joker::Blueprint => Box::new(complex::Blueprint),
     }
 }
 

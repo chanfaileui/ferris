@@ -61,7 +61,6 @@ impl GameState {
 
             mime_retriggers: 0,
             sock_and_buskin_retriggers: 0,
-
             first_face_card_processed: false,
         }
     }
@@ -138,7 +137,7 @@ impl GameState {
                 apply_edition(card, &mut self.chips, &mut self.mult)?;
             }
             // Process "OnScored" jokers for this card
-            // self.process_on_scored_jokers(card)?;
+            self.process_on_scored_jokers(card)?;
         }
 
         // Step 5: Process cards held in hand
@@ -147,7 +146,7 @@ impl GameState {
                 apply_steel_enhancement(card, &mut self.chips, &mut self.mult)?;
             }
             // Process "OnHeld" jokers for this card
-            // self.process_on_held_jokers(card)?;
+            self.process_on_held_jokers(card)?;
         }
 
         // Step 6: Process jokers (independent activation)

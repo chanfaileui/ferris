@@ -1,4 +1,4 @@
-use crate::{errors::GameResult, game::GameState};
+use crate::errors::GameResult;
 use enum_iterator::Sequence;
 // use itertools::Itertools;
 use indexmap::IndexMap;
@@ -143,8 +143,6 @@ pub fn identify_hand(cards: &[Card]) -> GameResult<PokerHand> {
     let has_four_of_a_kind = rank_count.values().any(|&count| count == 4);
     let has_three_of_a_kind = rank_count.values().any(|&count| count == 3);
     let pair_count = rank_count.values().filter(|&&count| count == 2).count();
-
-    // Check for hands in ascending order of importance
 
     // 12. Flush Five (all same rank and suit)
     if all_same_rank && has_flush {
