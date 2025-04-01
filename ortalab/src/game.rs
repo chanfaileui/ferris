@@ -13,7 +13,6 @@ pub struct GameState {
     pub round: Round,               // The round data (from ortalib)
     pub chips: Chips,               // Current chip value during scoring
     pub mult: Mult,                 // Current multiplier during scoring
-    pub explain_steps: Vec<String>, // Tracks explanation steps if needed
     pub explain_enabled: bool,      // Whether to track explain the scoring steps
 
     // Poker hand analysis fields
@@ -45,7 +44,6 @@ impl GameState {
             round,
             chips: 0.0,
             mult: 0.0,
-            explain_steps: Vec::new(),
             explain_enabled: explain,
 
             scoring_cards: Vec::new(),
@@ -65,17 +63,6 @@ impl GameState {
             sock_and_buskin_retriggers: 0,
 
             first_face_card_processed: false,
-        }
-    }
-
-    pub fn get_explanation(&self) -> &[String] {
-        &self.explain_steps
-    }
-
-    /// Adds an explanation step if explanation is enabled
-    fn add_explanation(&mut self, step: String) {
-        if self.explain_enabled {
-            self.explain_steps.push(step);
         }
     }
 
@@ -105,8 +92,7 @@ impl GameState {
             .map_err(|e| GameError::InvalidHand(e.to_string()))?;
         let (base_chips, base_mult) = poker_hand.hand_value();
 
-        let mut explanations = Vec::new();
-        explanations.push(format!("{:?} ({} x {})", poker_hand, base_chips, base_mult));
+        explain_dbg!(self, "{:?} ({} x {})", poker_hand, base_chips, base_mult);
 
         // Step 3: Initialize with base values
         let mut chips = base_chips;
@@ -136,21 +122,24 @@ impl GameState {
             let rank_chips: f64 = card.rank.rank_value();
             chips += rank_chips;
 
-            explanations.push(format!(
+            explain_dbg!(
+                self,
                 "{}{} +{} Chips ({} x {})",
-                card.rank, card.suit, rank_chips, chips, mult
-            ));
+                card.rank,
+                card.suit,
+                rank_chips,
+                chips,
+                mult
+            );
 
             // Apply card enhancements if present
             if card.enhancement.is_some() {
-                let enh_explanations = apply_enhancement(card, &mut chips, &mut mult)?;
-                explanations.extend(enh_explanations);
+                apply_enhancement(card, &mut chips, &mut mult)?;
             }
 
             // Apply card editions if present
             if card.edition.is_some() {
-                let edition_explanations = apply_edition(card, &mut chips, &mut mult)?;
-                explanations.extend(edition_explanations);
+                apply_edition(card, &mut chips, &mut mult)?;
             }
             // Process "OnScored" jokers for this card
             // self.process_on_scored_jokers(card)?;
@@ -159,8 +148,7 @@ impl GameState {
         // Step 5: Process cards held in hand
         for card in &self.round.cards_held_in_hand {
             if let Some(Enhancement::Steel) = card.enhancement {
-                let steel_explanations = apply_steel_enhancement(card, &mut chips, &mut mult)?;
-                explanations.extend(steel_explanations);
+                apply_steel_enhancement(card, &mut chips, &mut mult)?;
             }
             // Process "OnHeld" jokers for this card
             // self.process_on_held_jokers(card)?;
@@ -169,10 +157,7 @@ impl GameState {
         // Step 6: Process jokers (independent activation)
         jokers::process_jokers(self)?;
 
-        // Step 7: Save and mutate explanantion, chips, mult
-        for explanation in explanations {
-            self.add_explanation(explanation);
-        }
+        // Step 7: Save and mutate chips, mult
         self.chips = chips;
         self.mult = mult;
         Ok((self.chips, self.mult))

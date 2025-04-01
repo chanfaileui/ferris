@@ -5,11 +5,6 @@ mod poker;
 mod jokers;
 mod debug;
 
-// use clap::Parser;
-// use errors::GameResult;
-// use game::GameState;
-// use std::{fs::File, io::Read, path::PathBuf};
-
 use std::{
     error::Error,
     fs::File,
@@ -58,12 +53,6 @@ fn score(round: Round, explain: bool) -> (Chips, Mult) {
 
     // dbg!("\n======== main.rs ==========");
 
-    if explain {
-        for step in game.get_explanation() {
-            println!("{}", step);
-        }
-        println!();
-    }
     match result {
         Ok((chips, mult)) => {
             println!("{}", (chips * mult).floor());
