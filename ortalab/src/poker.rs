@@ -240,14 +240,7 @@ pub fn get_scoring_cards(hand_type: &PokerHand, cards: &[Card]) -> Vec<Card> {
                 .filter_map(|(_, cards)| {
                     if cards.len() == 2 {
                         // This is a pair
-                        let pair_cards = cards
-                            .iter()
-                            .map(|&card| {
-                                dbg!(card);
-                                *card
-                            })
-                            .collect::<Vec<Card>>();
-                        Some(pair_cards)
+                        Some(cards.iter().map(|&card| *card).collect::<Vec<Card>>())
                     } else {
                         None
                     }

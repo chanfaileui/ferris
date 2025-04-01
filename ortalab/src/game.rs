@@ -10,10 +10,10 @@ use ortalib::{Card, Chips, Enhancement, Mult, PokerHand, Round};
 
 #[derive(Debug)]
 pub struct GameState {
-    pub round: Round,               // The round data (from ortalib)
-    pub chips: Chips,               // Current chip value during scoring
-    pub mult: Mult,                 // Current multiplier during scoring
-    pub explain_enabled: bool,      // Whether to track explain the scoring steps
+    pub round: Round,          // The round data (from ortalib)
+    pub chips: Chips,          // Current chip value during scoring
+    pub mult: Mult,            // Current multiplier during scoring
+    pub explain_enabled: bool, // Whether to track explain the scoring steps
 
     // Poker hand analysis fields
     pub scoring_cards: Vec<Card>, // Cards that contribute to the poker hand
@@ -77,7 +77,6 @@ impl GameState {
     }
 
     pub fn score(&mut self) -> GameResult<(Chips, Mult)> {
-        // dbg!("ROUNDDDD {:?}", &self.round);
         // dbg!("cards_played {:?}", &self.round.cards_played);
         // dbg!("cards held in hand {:?}", &self.round.cards_held_in_hand);
         // dbg!("jokers! {:?}", &self.round.jokers);
@@ -91,12 +90,9 @@ impl GameState {
         let poker_hand: PokerHand = identify_hand(&self.round.cards_played)
             .map_err(|e| GameError::InvalidHand(e.to_string()))?;
         let (base_chips, base_mult) = poker_hand.hand_value();
-
+        self.chips = base_chips;
+        self.mult = base_mult;
         explain_dbg!(self, "{:?} ({} x {})", poker_hand, base_chips, base_mult);
-
-        // Step 3: Initialize with base values
-        let mut chips = base_chips;
-        let mut mult = base_mult;
 
         // // Step 2: Get scoring cards
         // let scoring_cards: Vec<Card> = get_scoring_cards(&poker_hand, &self.round.cards_played);
@@ -120,7 +116,7 @@ impl GameState {
         // Step 4: Process each card separately
         for card in &self.scoring_cards {
             let rank_chips: f64 = card.rank.rank_value();
-            chips += rank_chips;
+            self.chips += rank_chips;
 
             explain_dbg!(
                 self,
@@ -128,18 +124,18 @@ impl GameState {
                 card.rank,
                 card.suit,
                 rank_chips,
-                chips,
-                mult
+                self.chips,
+                self.mult
             );
 
             // Apply card enhancements if present
             if card.enhancement.is_some() {
-                apply_enhancement(card, &mut chips, &mut mult)?;
+                apply_enhancement(card, &mut self.chips, &mut self.mult)?;
             }
 
             // Apply card editions if present
             if card.edition.is_some() {
-                apply_edition(card, &mut chips, &mut mult)?;
+                apply_edition(card, &mut self.chips, &mut self.mult)?;
             }
             // Process "OnScored" jokers for this card
             // self.process_on_scored_jokers(card)?;
@@ -148,7 +144,7 @@ impl GameState {
         // Step 5: Process cards held in hand
         for card in &self.round.cards_held_in_hand {
             if let Some(Enhancement::Steel) = card.enhancement {
-                apply_steel_enhancement(card, &mut chips, &mut mult)?;
+                apply_steel_enhancement(card, &mut self.chips, &mut self.mult)?;
             }
             // Process "OnHeld" jokers for this card
             // self.process_on_held_jokers(card)?;
@@ -157,9 +153,6 @@ impl GameState {
         // Step 6: Process jokers (independent activation)
         jokers::process_jokers(self)?;
 
-        // Step 7: Save and mutate chips, mult
-        self.chips = chips;
-        self.mult = mult;
         Ok((self.chips, self.mult))
     }
 }
