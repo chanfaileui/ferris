@@ -24,24 +24,24 @@ fn group_by_rank(cards: &[Card]) -> IndexMap<Rank, Vec<&Card>> {
     groups
 }
 
-// /// Returns a IndexMap mapping each rank to the number of cards with that rank in played cards
-// /// For example, {♣: 1, ♠: 1, ♥: 2, ♦: 1}
-// fn group_suit(cards: &[Card]) -> IndexMap<Suit, usize> {
-//     let mut suit_counts: IndexMap<Suit, usize> = IndexMap::new();
+/// Returns a IndexMap mapping each rank to the number of cards with that rank in played cards
+/// For example, {♣: 1, ♠: 1, ♥: 2, ♦: 1}
+fn group_suit(cards: &[Card]) -> IndexMap<Suit, usize> {
+    let mut suit_counts: IndexMap<Suit, usize> = IndexMap::new();
 
-//     // if there are any wild cards, we need to count them as all suits
-//     for card in cards {
-//         if card.enhancement == Some(ortalib::Enhancement::Wild) {
-//             for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-//                 *suit_counts.entry(suit).or_insert(0) += 1;
-//             }
-//         } else {
-//             *suit_counts.entry(card.suit).or_insert(0) += 1;
-//         }
-//     }
+    // if there are any wild cards, we need to count them as all suits
+    for card in cards {
+        if card.enhancement == Some(ortalib::Enhancement::Wild) {
+            for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                *suit_counts.entry(suit).or_insert(0) += 1;
+            }
+        } else {
+            *suit_counts.entry(card.suit).or_insert(0) += 1;
+        }
+    }
 
-//     suit_counts
-// }
+    suit_counts
+}
 
 /// Returns a IndexMap mapping each suit to the number of cards with that suit in played cards
 /// For example, if five 10s are played, the result will be {♠: [10♠], ♣: [10♣], ♥: [10♥, 10♥], ♦: [10♦]}
@@ -135,66 +135,73 @@ pub fn identify_hand(cards: &[Card]) -> GameResult<PokerHand> {
     // println!("group by suit: {:?}", group_suit(cards));
     // println!("group by suit: {:?}", group_by_suit(cards));
 
-    let rank_count: IndexMap<ortalib::Rank, usize> = group_rank(cards);
-    // let suit_count: IndexMap<ortalib::Suit, usize> = group_suit(cards);
+    let rank_count = group_rank(cards);
+    let all_same_rank = rank_count.len() == 1;
+    let has_flush = is_flush(cards);
+    let has_sequential = is_sequential(cards);
+    let has_three_two = has_three_two_pattern(cards);
+    let has_four_of_a_kind = rank_count.values().any(|&count| count == 4);
+    let has_three_of_a_kind = rank_count.values().any(|&count| count == 3);
+    let pair_count = rank_count.values().filter(|&&count| count == 2).count();
 
-    // 1. Are all 5 cards the same rank?
-    if rank_count.len() == 1 {
-        // are they the same suit?
-        if is_flush(cards) {
-            return Ok(PokerHand::FlushFive);
-        } else {
-            return Ok(PokerHand::FiveOfAKind);
-        }
+    // Check for hands in ascending order of importance
+
+    // 12. Flush Five (all same rank and suit)
+    if all_same_rank && has_flush {
+        return Ok(PokerHand::FlushFive);
     }
 
-    // 2. Are all 5 cards the same suit?
-    if is_flush(cards) {
-        // Check if sequential
-        if has_three_two_pattern(cards) {
-            return Ok(PokerHand::FlushHouse);
-        } else if is_sequential(cards) {
-            return Ok(PokerHand::StraightFlush);
-        } else {
-            return Ok(PokerHand::Flush);
-        }
+    // 11. Flush House (full house with all same suit)
+    if has_three_two && has_flush {
+        return Ok(PokerHand::FlushHouse);
     }
 
-    // 3. Are 4 cards the same rank?
-    if rank_count.values().any(|&count| count == 4) {
+    // 10. Five of a Kind (all same rank)
+    if all_same_rank {
+        return Ok(PokerHand::FiveOfAKind);
+    }
+
+    // 9. Straight Flush (sequential and same suit)
+    if has_sequential && has_flush {
+        return Ok(PokerHand::StraightFlush);
+    }
+
+    // 8. Four of a Kind
+    if has_four_of_a_kind {
         return Ok(PokerHand::FourOfAKind);
     }
 
-    // 4. Is it a 3+2 pattern? (Three of one rank, two of another)
-    if has_three_two_pattern(cards) {
+    // 7. Full House (three of one rank, two of another)
+    if has_three_two {
         return Ok(PokerHand::FullHouse);
     }
 
-    // 5. Are 5 cards sequential?
-    if is_sequential(cards) {
+    // 6. Flush (all same suit)
+    if has_flush {
+        return Ok(PokerHand::Flush);
+    }
+
+    // 5. Straight (sequential cards)
+    if has_sequential {
         return Ok(PokerHand::Straight);
     }
 
-    // 6. Are 3 cards the same rank?
-    for &count in rank_count.values() {
-        if count == 3 {
-            return Ok(PokerHand::ThreeOfAKind);
-        }
+    // 4. Three of a Kind
+    if has_three_of_a_kind {
+        return Ok(PokerHand::ThreeOfAKind);
     }
 
-    // 7. Are there two pairs?
-    if rank_count.values().filter(|&&count| count == 2).count() == 2 {
+    // 3. Two Pair
+    if pair_count == 2 {
         return Ok(PokerHand::TwoPair);
     }
 
-    // 8. Is there one pair?
-    for &count in rank_count.values() {
-        if count == 2 {
-            return Ok(PokerHand::Pair);
-        }
+    // 2. Pair
+    if pair_count == 1 {
+        return Ok(PokerHand::Pair);
     }
 
-    // if none of the above, it's a high card
+    // 1. High Card (default when no other hand type matches)
     Ok(PokerHand::HighCard)
 }
 
@@ -296,10 +303,7 @@ pub struct HandConditions {
 
 /// Analyzes a hand of cards to determine what poker hand conditions exist
 /// This is useful for jokers that activate based on the presence of certain hand conditions
-pub fn analyze_hand_conditions(
-    cards: &[Card],
-    game_state: &GameState,
-) -> GameResult<HandConditions> {
+pub fn analyze_hand_conditions(cards: &[Card]) -> GameResult<HandConditions> {
     let mut conditions = HandConditions::default();
 
     // Analyze ranks to find pairs and three-of-a-kinds

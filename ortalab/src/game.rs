@@ -97,7 +97,7 @@ impl GameState {
         // // Step 2: Get scoring cards
         // let scoring_cards: Vec<Card> = get_scoring_cards(&poker_hand, &self.round.cards_played);
         // Step 3: Analyze hand conditions for joker effects
-        let conditions = analyze_hand_conditions(&self.round.cards_played, self)?;
+        let conditions = analyze_hand_conditions(&self.round.cards_played)?;
         self.contains_pair = conditions.contains_pair;
         self.contains_two_pair = conditions.contains_two_pair;
         self.contains_three_of_a_kind = conditions.contains_three_of_a_kind;

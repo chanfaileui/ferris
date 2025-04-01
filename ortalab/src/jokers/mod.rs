@@ -2,26 +2,21 @@ pub mod basic;
 pub mod complex;
 pub mod medium;
 
-use ortalib::{Chips, Edition, Joker, JokerCard, Mult};
+use ortalib::{Edition, Joker, JokerCard};
 
 use crate::{errors::GameResult, game::GameState};
 
 use crate::explain_dbg;
 
-// pub use self::basic::BasicJoker;
-// pub use self::complex::ComplexJoker;
-// pub use self::medium::MediumJoker;
-
-// Define any shared traits or types
-/// Core trait for all joker effects
-
 /// Represents when a joker's effect activates
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ActivationType {
     Independent, // Activates after all cards are scored
-    OnScored,    // Activates when a specific card is scored
-    OnHeld,      // Activates based on cards held in hand
+                 // OnScored,    // Activates when a specific card is scored
+                 // OnHeld,      // Activates based on cards held in hand
 }
+
+/// Core trait for all joker effects
 pub trait JokerEffect {
     /// The type of activation for this joker
     fn activation_type(&self) -> ActivationType;
@@ -29,7 +24,7 @@ pub trait JokerEffect {
     fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()>;
 
     /// Optional method for checking if a joker can be applied
-    fn can_apply(&self, game_state: &GameState) -> bool {
+    fn can_apply(&self, _game_state: &GameState) -> bool {
         true // Default implementation always allows application
     }
 }
