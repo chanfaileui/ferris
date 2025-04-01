@@ -1,7 +1,7 @@
 use crate::errors::GameResult;
 use ortalib::{Card, Chips, Edition, Enhancement, Mult};
 
-use crate::explain_dbg;
+use crate::explain_dbg_bool;
 
 pub fn apply_enhancement(
     card: &Card,
@@ -12,7 +12,7 @@ pub fn apply_enhancement(
     match card.enhancement {
         Some(Enhancement::Bonus) => {
             *chips += 30.0;
-            explain_dbg!(
+            explain_dbg_bool!(
                 explain_enabled,
                 "{} +30 Chips ({} x {})",
                 card,
@@ -22,11 +22,11 @@ pub fn apply_enhancement(
         }
         Some(Enhancement::Mult) => {
             *mult += 4.0;
-            explain_dbg!(explain_enabled, "{} +4 Mult ({} x {})", card, *chips, *mult);
+            explain_dbg_bool!(explain_enabled, "{} +4 Mult ({} x {})", card, *chips, *mult);
         }
         Some(Enhancement::Glass) => {
             *mult *= 2.0;
-            explain_dbg!(explain_enabled, "{} x2 Mult ({} x {})", card, *chips, *mult);
+            explain_dbg_bool!(explain_enabled, "{} x2 Mult ({} x {})", card, *chips, *mult);
         }
         Some(Enhancement::Steel) => {
             // ✖️ Mult×1.5 if this card is held in hand
@@ -49,7 +49,7 @@ pub fn apply_edition(
     match card.edition {
         Some(Edition::Foil) => {
             *chips += 50.0;
-            explain_dbg!(
+            explain_dbg_bool!(
                 explain_enabled,
                 "{} +50 Chips ({} x {})",
                 card,
@@ -59,7 +59,7 @@ pub fn apply_edition(
         }
         Some(Edition::Holographic) => {
             *mult += 10.0;
-            explain_dbg!(
+            explain_dbg_bool!(
                 explain_enabled,
                 "{} +10 Mult ({} x {})",
                 card,
@@ -69,7 +69,7 @@ pub fn apply_edition(
         }
         Some(Edition::Polychrome) => {
             *mult *= 1.5;
-            explain_dbg!(
+            explain_dbg_bool!(
                 explain_enabled,
                 "{} x1.5 Mult ({} x {})",
                 card,
@@ -91,7 +91,7 @@ pub fn apply_steel_enhancement(
 ) -> GameResult<()> {
     if let Some(Enhancement::Steel) = card.enhancement {
         *mult *= 1.5;
-        explain_dbg!(
+        explain_dbg_bool!(
             explain_enabled,
             "{} x1.5 Mult ({} x {})",
             card,

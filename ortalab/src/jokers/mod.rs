@@ -6,7 +6,7 @@ use ortalib::{Chips, Edition, Joker, JokerCard, Mult};
 
 use crate::{errors::GameResult, game::GameState};
 
-use crate::explain_dbg;
+use crate::explain_dbg_bool;
 
 /// Represents when a joker's effect activates
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -21,13 +21,7 @@ pub trait JokerEffect {
     /// The type of activation for this joker
     fn activation_type(&self) -> ActivationType;
     /// Apply the joker's effect to the game state
-    fn apply(
-        &self,
-        joker_card: &JokerCard,
-        chips: &mut Chips,
-        mult: &mut Mult,
-        explain_enabled: bool,
-    ) -> GameResult<()>;
+    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()>;
 
     /// Optional method for checking if a joker can be applied
     fn can_apply(&self, _game_state: &GameState) -> bool {
@@ -90,7 +84,7 @@ pub fn apply_joker_edition(
     match joker_card.edition {
         Some(Edition::Foil) => {
             *chips += 50.0;
-            explain_dbg!(
+            explain_dbg_bool!(
                 explain_enabled,
                 "{} Foil +50 Chips ({} x {})",
                 joker_card.joker,
@@ -100,7 +94,7 @@ pub fn apply_joker_edition(
         }
         Some(Edition::Holographic) => {
             *mult += 10.0;
-            explain_dbg!(
+            explain_dbg_bool!(
                 explain_enabled,
                 "{} Holographic +10 Mult ({} x {})",
                 joker_card.joker,
@@ -110,7 +104,7 @@ pub fn apply_joker_edition(
         }
         Some(Edition::Polychrome) => {
             *mult *= 1.5;
-            explain_dbg!(
+            explain_dbg_bool!(
                 explain_enabled,
                 "{} Polychrome x1.5 Mult ({} x {})",
                 joker_card.joker,
@@ -137,18 +131,13 @@ pub fn process_jokers(game_state: &mut GameState) -> GameResult<()> {
         }
     }
     // Stage 2: Process independent jokers
-    for joker_card in &game_state.round.jokers {
+    for joker_card in &game_state.round.jokers.iter().copied().collect::<Vec<_>>() {
         let joker_effect = create_joker_effect(joker_card.joker);
 
         if joker_effect.activation_type() == ActivationType::Independent
             && joker_effect.can_apply(game_state)
         {
-            joker_effect.apply(
-                joker_card,
-                &mut game_state.chips,
-                &mut game_state.mult,
-                game_state.explain_enabled,
-            )?;
+            joker_effect.apply(game_state, joker_card)?;
         }
     }
     // Stage 3: Process Polychrome editions after all jokers have been applied

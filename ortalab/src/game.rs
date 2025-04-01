@@ -1,9 +1,9 @@
 use crate::errors::{GameError, GameResult};
+use crate::jokers;
 use crate::modifiers::{apply_edition, apply_enhancement, apply_steel_enhancement};
 use crate::poker::{analyze_hand_conditions, get_scoring_cards, identify_hand};
-use crate::{game, jokers};
 
-use crate::explain_dbg;
+use crate::explain_dbg_bool;
 
 // Import from external crates
 use ortalib::{Card, Chips, Enhancement, Mult, PokerHand, Round};
@@ -77,17 +77,13 @@ impl GameState {
                 effect.activation_type() == jokers::ActivationType::OnScored
                     && effect.can_apply(self)
             })
+            .copied()
             .collect();
 
         // Apply each applicable joker
         for joker_card in &applicable_jokers {
             let effect = jokers::create_joker_effect(joker_card.joker);
-            effect.apply(
-                joker_card,
-                &mut self.chips,
-                &mut self.mult,
-                self.explain_enabled,
-            )?;
+            effect.apply(self, joker_card)?;
         }
 
         // Handle retriggers if needed
@@ -99,8 +95,8 @@ impl GameState {
                 // Reapply base card effects
                 let rank_chips = card.rank.rank_value();
                 self.chips += rank_chips;
-                explain_dbg!(
-                    self,
+                explain_dbg_bool!(
+                    self.explain_enabled,
                     "Retrigger: {} +{} Chips ({} x {})",
                     card,
                     rank_chips,
@@ -124,12 +120,7 @@ impl GameState {
                 // Reapply jokers without allowing further retriggers
                 for joker_card in &applicable_jokers {
                     let effect = jokers::create_joker_effect(joker_card.joker);
-                    effect.apply(
-                        joker_card,
-                        &mut self.chips,
-                        &mut self.mult,
-                        self.explain_enabled,
-                    )?;
+                    effect.apply(self, joker_card)?;
                 }
             }
         }
@@ -158,7 +149,13 @@ impl GameState {
         let (base_chips, base_mult) = poker_hand.hand_value();
         self.chips = base_chips;
         self.mult = base_mult;
-        explain_dbg!(self, "{:?} ({} x {})", poker_hand, base_chips, base_mult);
+        explain_dbg_bool!(
+            self.explain_enabled,
+            "{:?} ({} x {})",
+            poker_hand,
+            base_chips,
+            base_mult
+        );
 
         // // Step 2: Get scoring cards
         // let scoring_cards: Vec<Card> = get_scoring_cards(&poker_hand, &self.round.cards_played);
@@ -184,8 +181,8 @@ impl GameState {
             let rank_chips: f64 = card.rank.rank_value();
             self.chips += rank_chips;
 
-            explain_dbg!(
-                self,
+            explain_dbg_bool!(
+                self.explain_enabled,
                 "{}{} +{} Chips ({} x {})",
                 card.rank,
                 card.suit,
