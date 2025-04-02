@@ -218,10 +218,11 @@ impl JokerEffect for Blueprint {
         current_card: &Card,
     ) -> GameResult<()> {
         // Find the joker to the right
-        let joker_index =
-            game_state.round.jokers.iter().position(|j| {
-                j.joker == Joker::Blueprint && std::ptr::eq(j, joker_card)
-            });
+        let joker_index = game_state
+            .round
+            .jokers
+            .iter()
+            .position(|j| j.joker == Joker::Blueprint && std::ptr::eq(j, joker_card));
 
         if let Some(index) = joker_index {
             if index < game_state.round.jokers.len() - 1 {

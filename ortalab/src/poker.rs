@@ -61,7 +61,18 @@ fn group_by_suit(cards: &[Card]) -> IndexMap<Suit, Vec<&Card>> {
 
     suit_cards
 }
+/// Determines if the cards form a flush (all cards of the same suit)
+fn is_flush(cards: &[Card]) -> bool {
+    if cards.len() < 5 {
+        return false;
+    }
 
+    // Group by suit, considering Wild cards as every suit
+    let suit_groups = group_by_suit(cards);
+
+    // Check if any suit has enough cards for a flush
+    suit_groups.values().any(|suit_cards| suit_cards.len() >= 5)
+}
 fn is_straight(cards: &[Card]) -> bool {
     if cards.len() < 5 {
         return false; // Not enough cards for a straight
@@ -124,7 +135,7 @@ fn has_four_card_flush(cards: &[Card]) -> bool {
 
     // Group by suit
     let suit_groups = group_by_suit(cards);
-
+    // println!("4card flush suit_groups: {:?}", suit_groups);
     // Check if any suit appears at least 4 times
     suit_groups.values().any(|cards| cards.len() >= 4)
 }
@@ -135,43 +146,176 @@ fn has_four_card_straight(cards: &[Card]) -> bool {
         return false;
     }
 
-    // Get unique ranks sorted
-    let mut ranks: Vec<u8> = cards
-        .iter()
-        .map(|card| card.rank.rank_value() as u8)
-        .collect();
+    // get ranks and sort them
+    let mut ranks: Vec<Rank> = cards.iter().map(|card| card.rank).collect();
     ranks.sort();
     ranks.dedup();
+    // If we don't have at least 4 unique ranks, no straight is possible
+    if ranks.len() < 4 {
+        return false;
+    }
 
-    // Check for 4 consecutive ranks
+    // Special case: check for A-4 straight (Ace is low)
+    if ranks.contains(&Rank::Ace)
+        && ranks.contains(&Rank::Two)
+        && ranks.contains(&Rank::Three)
+        && ranks.contains(&Rank::Four)
+    {
+        return true;
+    }
+
+    // Check for 4 consecutive ranks in any window
     for window in ranks.windows(4) {
-        if window[3] - window[0] == 3 {
+        let mut is_consecutive = true;
+
+        for i in 0..3 {
+            if let Some(expected_next) = window[i].next() {
+                if expected_next != window[i + 1] {
+                    is_consecutive = false;
+                    break;
+                }
+            } else {
+                // If there's no next rank, they can't be consecutive
+                is_consecutive = false;
+                break;
+            }
+        }
+
+        if is_consecutive {
             return true;
         }
     }
 
-    // Special case for A-2-3-4 (Ace low)
-    if ranks.contains(&2) && ranks.contains(&3) && ranks.contains(&4) && ranks.contains(&14) {
-        return true;
+    false // No 4-card straight found
+}
+
+/// Checks if the cards form a straight with the Shortcut joker active
+/// Shortcut allows straights to be made with gaps of 1 rank
+fn has_shortcut_straight(cards: &[Card]) -> bool {
+    if cards.len() < 5 {
+        return false;
+    }
+
+    // Extract ranks, sort them, and remove duplicates
+    let mut ranks: Vec<Rank> = cards.iter().map(|card| card.rank).collect();
+    ranks.sort();
+    ranks.dedup();
+
+    // Need at least 5 unique ranks
+    if ranks.len() < 5 {
+        return false;
+    }
+
+    // Check for straights with gaps
+    for window in ranks.windows(5) {
+        // Count gaps
+        let mut gap_count = 0;
+
+        for i in 0..4 {
+            if let Some(expected_next) = window[i].next() {
+                if expected_next != window[i + 1] {
+                    // There's a gap
+                    gap_count += 1;
+                }
+            }
+        }
+
+        // Shortcut allows at most one gap
+        if gap_count <= 1 {
+            return true;
+        }
+    }
+
+    // Special case for Ace-low straight with a gap
+    if ranks.contains(&Rank::Ace) {
+        // Check for potential Ace-low straights with a gap
+        let low_ranks: Vec<Rank> = ranks
+            .iter()
+            .filter(|&&r| r <= Rank::Five)
+            .copied()
+            .collect();
+
+        if low_ranks.len() >= 4 {
+            // For simplicity, manually check A-2-3-5 and A-2-4-5
+            let has_two = low_ranks.contains(&Rank::Two);
+            let has_three = low_ranks.contains(&Rank::Three);
+            let has_four = low_ranks.contains(&Rank::Four);
+            let has_five = low_ranks.contains(&Rank::Five);
+
+            if has_two && has_three && has_five && !has_four {
+                return true; // A-2-3-5 (one gap)
+            }
+
+            if has_two && has_four && has_five && !has_three {
+                return true; // A-2-4-5 (one gap)
+            }
+        }
     }
 
     false
 }
 
-/// Determines if the cards form a flush (all cards of the same suit)
-fn is_flush(cards: &[Card]) -> bool {
-    if cards.len() < 5 {
+/// Checks if the cards form a 4-card straight with gaps (for Four Fingers + Shortcut)
+fn has_four_card_shortcut_straight(cards: &[Card]) -> bool {
+    if cards.len() < 4 {
         return false;
     }
 
-    // Group by suit, considering Wild cards as every suit
-    let suit_groups = group_by_suit(cards);
+    // Extract ranks, sort them, and remove duplicates
+    let mut ranks: Vec<Rank> = cards.iter().map(|card| card.rank).collect();
+    ranks.sort();
+    ranks.dedup();
 
-    // Check if any suit has enough cards for a flush
-    suit_groups.values().any(|suit_cards| suit_cards.len() >= 5)
+    // Need at least 4 unique ranks
+    if ranks.len() < 4 {
+        return false;
+    }
+
+    // Check for 4-card straights with gaps
+    for window in ranks.windows(4) {
+        // Count gaps
+        let mut gap_count = 0;
+        for i in 0..3 {
+            if let Some(expected_next) = window[i].next() {
+                let actual_next = window[i + 1];
+                if expected_next != actual_next {
+                    // There's a gap
+                    gap_count += 1;
+                }
+            }
+        }
+
+        // Shortcut allows at most one gap
+        if gap_count <= 1 {
+            return true;
+        }
+    }
+
+    // Special case for Ace-low straight with a gap
+    if ranks.contains(&Rank::Ace) {
+        // Check for A-2-4 or A-3-4
+        let has_two = ranks.contains(&Rank::Two);
+        let has_three = ranks.contains(&Rank::Three);
+        let has_four = ranks.contains(&Rank::Four);
+
+        if has_two && has_four && !has_three {
+            return true; // A-2-4 (one gap)
+        }
+
+        if has_three && has_four && !has_two {
+            return true; // A-3-4 (one gap)
+        }
+    }
+
+    false
 }
 
-pub fn identify_hand(cards: &[Card], four_fingers_active: bool) -> GameResult<PokerHand> {
+pub fn identify_hand(
+    cards: &[Card],
+    four_fingers_active: bool,
+    shortcut_active: bool,
+) -> GameResult<PokerHand> {
+    // println!("four fingers active: {:?}", four_fingers_active);
     // println!("group by rank: {:?}", group_rank(cards));
     // println!("group by rank: {:?}", group_by_rank(cards));
     // println!("group by suit: {:?}", group_suit(cards));
@@ -185,7 +329,9 @@ pub fn identify_hand(cards: &[Card], four_fingers_active: bool) -> GameResult<Po
     let rank_count = group_rank(cards);
     let all_same_rank = rank_count.len() == 1;
     let has_flush = is_flush(cards);
-    let has_straight = is_straight(cards);
+
+    let has_straight = is_straight(cards) || (shortcut_active && has_shortcut_straight(cards));
+
     let has_three_two = has_three_two_pattern(cards);
     let has_four_of_a_kind = rank_count.values().any(|&count| count == 4);
     let has_three_of_a_kind = rank_count.values().any(|&count| count == 3);
@@ -193,16 +339,19 @@ pub fn identify_hand(cards: &[Card], four_fingers_active: bool) -> GameResult<Po
 
     // Four Fingers joker support - check for 4-card patterns if active
     let has_four_card_flush = if four_fingers_active && cards.len() >= 4 {
-        has_four_card_flush(cards)
+        let result = has_four_card_flush(cards);
+        // println!("has_four_card_flush: {:?}", result);
+        result
     } else {
         false
     };
 
     let has_four_card_straight = if four_fingers_active && cards.len() >= 4 {
-        has_four_card_straight(cards)
+        has_four_card_straight(cards) || (shortcut_active && has_four_card_shortcut_straight(cards))
     } else {
         false
     };
+    // println!("has_four_card_straight: {:?}", has_four_card_straight);
 
     // Use combined flush check (5-card flush OR 4-card flush with Four Fingers)
     let effective_flush = has_flush || has_four_card_flush;
@@ -226,7 +375,7 @@ pub fn identify_hand(cards: &[Card], four_fingers_active: bool) -> GameResult<Po
     }
 
     // 9. Straight Flush (sequential and same suit)
-    if has_straight && effective_flush {
+    if effective_straight && effective_flush {
         return Ok(PokerHand::StraightFlush);
     }
 
@@ -269,6 +418,325 @@ pub fn identify_hand(cards: &[Card], four_fingers_active: bool) -> GameResult<Po
     Ok(PokerHand::HighCard)
 }
 
+/// Helper function to find the cards that form a shortcut straight
+fn find_shortcut_straight_cards(cards: &[Card]) -> Vec<Card> {
+    // Extract ranks with their original indices
+    let mut rank_indices: Vec<(usize, u8)> = cards
+        .iter()
+        .enumerate()
+        .map(|(i, card)| (i, card.rank.rank_value() as u8))
+        .collect();
+
+    // Sort by rank value
+    rank_indices.sort_by_key(|&(_, rank)| rank);
+
+    // Get unique ranks (maintain original indices)
+    let mut unique_ranks = Vec::new();
+    let mut last_rank = 0;
+    for &(idx, rank) in &rank_indices {
+        if rank != last_rank {
+            unique_ranks.push((idx, rank));
+            last_rank = rank;
+        }
+    }
+
+    // Special case: check for Ace-low shortcut straight
+    if unique_ranks.iter().any(|&(_, r)| r == 14) {
+        // Ace present
+        let mut low_ranks = Vec::new();
+        let mut ace_idx = 0;
+
+        for &(idx, rank) in &unique_ranks {
+            if rank == 14 {
+                ace_idx = idx;
+            } else if rank <= 7 {
+                // Consider ranks 2-7 for Ace-low with a gap
+                low_ranks.push((idx, rank));
+            }
+        }
+
+        // Check for Ace-low shortcut straight (A-2-4-5-7 or similar)
+        if low_ranks.len() >= 4 {
+            // Sort low ranks
+            low_ranks.sort_by_key(|&(_, r)| r);
+
+            // Check if we can form a valid shortcut sequence
+            for start in 0..=low_ranks.len() - 4 {
+                let window = &low_ranks[start..start + 4];
+                let total_span = window[3].1 - window[0].1;
+
+                // For a shortcut straight with 4 cards, the span should be at most 5
+                if total_span <= 5 {
+                    // We found a valid sequence including Ace as low
+                    let mut result = Vec::new();
+                    result.push(cards[ace_idx]); // Add Ace
+
+                    // Add the four cards from the window
+                    for &(i, _) in window {
+                        result.push(cards[i]);
+                    }
+
+                    // Return the first 5 cards (or fewer if we don't have enough)
+                    return result.into_iter().take(5).collect();
+                }
+            }
+        }
+    }
+
+    // Check for regular shortcut straight
+    // Try each possible starting position for a 5-card sequence
+    for start in 0..=unique_ranks.len() - 5 {
+        let window = &unique_ranks[start..start + 5];
+        let total_span = window[4].1 - window[0].1;
+
+        // For a shortcut straight with 5 cards, the span should be at most 6
+        if total_span <= 6 {
+            // Check if there's at most one gap
+            let mut gap_count = 0;
+            for i in 0..4 {
+                let gap = window[i + 1].1 - window[i].1 - 1;
+                if gap > 1 {
+                    gap_count = 2; // Too big gap, invalid
+                    break;
+                } else if gap == 1 {
+                    gap_count += 1;
+                }
+            }
+
+            if gap_count <= 1 {
+                // We found a valid shortcut straight
+                return window.iter().map(|&(i, _)| cards[i]).collect();
+            }
+        }
+    }
+
+    // Fallback: return the full hand if we couldn't find a specific straight
+    cards.to_vec()
+}
+
+/// Helper function to find the cards that form a 4-card shortcut straight
+fn find_four_card_shortcut_straight(cards: &[Card]) -> Vec<Card> {
+    // Similar to find_shortcut_straight_cards but for 4-card sequences
+    let mut rank_indices: Vec<(usize, u8)> = cards
+        .iter()
+        .enumerate()
+        .map(|(i, card)| (i, card.rank.rank_value() as u8))
+        .collect();
+
+    // Sort by rank value
+    rank_indices.sort_by_key(|&(_, rank)| rank);
+
+    // Get unique ranks (maintain original indices)
+    let mut unique_ranks = Vec::new();
+    let mut last_rank = 0;
+    for &(idx, rank) in &rank_indices {
+        if rank != last_rank {
+            unique_ranks.push((idx, rank));
+            last_rank = rank;
+        }
+    }
+
+    // Special case: check for Ace-low shortcut straight
+    if unique_ranks.iter().any(|&(_, r)| r == 14) {
+        // Ace present
+        let mut low_ranks = Vec::new();
+        let mut ace_idx = 0;
+
+        for &(idx, rank) in &unique_ranks {
+            if rank == 14 {
+                ace_idx = idx;
+            } else if rank <= 5 {
+                // Consider ranks 2-5 for Ace-low with a gap
+                low_ranks.push((idx, rank));
+            }
+        }
+
+        // Check for Ace-low shortcut straight (A-2-4-5 or similar)
+        if low_ranks.len() >= 3 {
+            // Sort low ranks
+            low_ranks.sort_by_key(|&(_, r)| r);
+
+            // Check if we can form a valid shortcut sequence
+            for start in 0..=low_ranks.len() - 3 {
+                let window = &low_ranks[start..start + 3];
+                let total_span = window[2].1 - window[0].1;
+
+                // For a shortcut straight with 3 cards, the span should be at most 4
+                if total_span <= 4 {
+                    // We found a valid sequence including Ace as low
+                    let mut result = Vec::new();
+                    result.push(cards[ace_idx]); // Add Ace
+
+                    // Add the three cards from the window
+                    for &(i, _) in window {
+                        result.push(cards[i]);
+                    }
+
+                    // Return all 4 cards
+                    return result;
+                }
+            }
+        }
+    }
+
+    // Check for regular shortcut straight
+    for start in 0..=unique_ranks.len() - 4 {
+        let window = &unique_ranks[start..start + 4];
+        let total_span = window[3].1 - window[0].1;
+
+        // For a shortcut straight with 4 cards, the span should be at most 5
+        if total_span <= 5 {
+            // Check if there's at most one gap
+            let mut gap_count = 0;
+            for i in 0..3 {
+                let gap = window[i + 1].1 - window[i].1 - 1;
+                if gap > 1 {
+                    gap_count = 2; // Too big gap, invalid
+                    break;
+                } else if gap == 1 {
+                    gap_count += 1;
+                }
+            }
+
+            if gap_count <= 1 {
+                // We found a valid 4-card shortcut straight
+                return window.iter().map(|&(i, _)| cards[i]).collect();
+            }
+        }
+    }
+
+    // Fallback: return the first 4 cards if we couldn't find a specific straight
+    cards.iter().take(4).copied().collect()
+}
+
+/// Find cards that make a standard 4-card straight (without gaps)
+fn find_four_card_straight(cards: &[Card]) -> Vec<Card> {
+    let mut rank_indices: Vec<(usize, u8)> = cards
+        .iter()
+        .enumerate()
+        .map(|(i, card)| (i, card.rank.rank_value() as u8))
+        .collect();
+
+    // Sort by rank value
+    rank_indices.sort_by_key(|&(_, rank)| rank);
+
+    // Check for consecutive sequences of 4 cards
+    for window in rank_indices.windows(4) {
+        if window[3].1 - window[0].1 == 3 {
+            // Found 4 consecutive cards
+            return window.iter().map(|&(i, _)| cards[i]).collect();
+        }
+    }
+
+    // Check for A-2-3-4 straight
+    let ace_indices: Vec<usize> = rank_indices
+        .iter()
+        .filter(|&&(_, rank)| rank == 14) // Ace
+        .map(|&(i, _)| i)
+        .collect();
+
+    let low_cards: Vec<(usize, u8)> = rank_indices
+        .iter()
+        .filter(|&&(_, rank)| (2..=4).contains(&rank))
+        .copied()
+        .collect();
+
+    if !ace_indices.is_empty()
+        && low_cards.len() >= 3
+        && low_cards.iter().any(|&(_, r)| r == 2)
+        && low_cards.iter().any(|&(_, r)| r == 3)
+        && low_cards.iter().any(|&(_, r)| r == 4)
+    {
+        let mut result = Vec::new();
+        // Add the Ace
+        result.push(cards[ace_indices[0]]);
+        // Add the 2, 3, 4
+        for &(i, r) in &low_cards {
+            if (2..=4).contains(&r) && result.len() < 4 {
+                result.push(cards[i]);
+            }
+        }
+        return result;
+    }
+
+    // Fallback
+    cards.iter().take(4).copied().collect()
+}
+
+/// Find cards forming a four-card flush
+fn find_four_card_flush(cards: &[Card]) -> Vec<Card> {
+    // Group by suit
+    let suit_groups = group_by_suit(cards);
+
+    // Find the first suit with at least 4 cards
+    for (_, suit_cards) in suit_groups {
+        if suit_cards.len() >= 4 {
+            // Take the first 4 cards of that suit
+            return suit_cards.iter().take(4).map(|&&card| card).collect();
+        }
+    }
+
+    // Fallback
+    Vec::new()
+}
+
+/// Find cards forming a four-card straight flush (regular, without gaps)
+fn find_four_card_straight_flush(cards: &[Card]) -> Vec<Card> {
+    // First group by suit
+    let suit_groups = group_by_suit(cards);
+
+    // Check each suit group for a 4-card straight
+    for (_, suit_cards) in suit_groups {
+        if suit_cards.len() >= 4 {
+            let suit_cards_vec: Vec<Card> = suit_cards.iter().map(|&&c| c).collect();
+            if has_four_card_straight(&suit_cards_vec) {
+                return find_four_card_straight(&suit_cards_vec);
+            }
+        }
+    }
+
+    // Fallback
+    Vec::new()
+}
+
+/// Find cards forming a shortcut straight flush (5 cards with at most one gap)
+fn find_shortcut_straight_flush_cards(cards: &[Card]) -> Vec<Card> {
+    // Group by suit
+    let suit_groups = group_by_suit(cards);
+
+    // Check each suit group for a shortcut straight
+    for (_, suit_cards) in suit_groups {
+        if suit_cards.len() >= 5 {
+            let suit_cards_vec: Vec<Card> = suit_cards.iter().map(|&&c| c).collect();
+            if has_shortcut_straight(&suit_cards_vec) {
+                return find_shortcut_straight_cards(&suit_cards_vec);
+            }
+        }
+    }
+
+    // Fallback
+    Vec::new()
+}
+
+/// Find cards forming a four-card shortcut straight flush
+fn find_four_card_shortcut_straight_flush(cards: &[Card]) -> Vec<Card> {
+    // Group by suit
+    let suit_groups = group_by_suit(cards);
+
+    // Check each suit group for a 4-card shortcut straight
+    for (_, suit_cards) in suit_groups {
+        if suit_cards.len() >= 4 {
+            let suit_cards_vec: Vec<Card> = suit_cards.iter().map(|&&c| c).collect();
+            if has_four_card_shortcut_straight(&suit_cards_vec) {
+                return find_four_card_shortcut_straight(&suit_cards_vec);
+            }
+        }
+    }
+
+    // Fallback
+    Vec::new()
+}
+
 /// Returns the cards that contribute to the scoring for a given poker hand
 ///
 /// According to the rules, generally only the cards relevant to the poker hand
@@ -278,6 +746,7 @@ pub fn get_scoring_cards(
     hand_type: &PokerHand,
     cards: &[Card],
     four_fingers_active: bool,
+    shortcut_active: bool,
 ) -> Vec<Card> {
     match hand_type {
         PokerHand::HighCard => {
@@ -350,59 +819,32 @@ pub fn get_scoring_cards(
                 .unwrap_or_default()
         }
         PokerHand::Straight => {
-            if four_fingers_active && !is_straight(cards) && has_four_card_straight(cards) {
-                // Find the 4 cards that form a straight
-                let mut ranks: Vec<(usize, u8)> = cards
-                    .iter()
-                    .enumerate()
-                    .map(|(i, card)| (i, card.rank.rank_value() as u8))
-                    .collect();
-
-                ranks.sort_by_key(|&(_, rank)| rank);
-
-                // Check for consecutive sequences of 4 cards
-                for window in ranks.windows(4) {
-                    if window[3].1 - window[0].1 == 3 {
-                        // Found 4 consecutive cards
-                        return window.iter().map(|&(i, _)| cards[i]).collect();
-                    }
+            if shortcut_active {
+                if is_straight(cards) {
+                    // Regular 5-card straight
+                    cards.to_vec()
+                } else if has_shortcut_straight(cards) {
+                    // Find the 5 cards that form a shortcut straight
+                    find_shortcut_straight_cards(cards)
+                } else if four_fingers_active && has_four_card_shortcut_straight(cards) {
+                    // Find the 4 cards that form a shortcut straight with Four Fingers
+                    find_four_card_shortcut_straight(cards)
+                } else if four_fingers_active && has_four_card_straight(cards) {
+                    // Standard 4-card straight with Four Fingers
+                    find_four_card_straight(cards)
+                } else {
+                    // Fallback
+                    cards.to_vec()
                 }
-
-                // Check for A-2-3-4 straight
-                let ace_indices: Vec<usize> = ranks
-                    .iter()
-                    .filter(|&&(_, rank)| rank == 14) // Ace
-                    .map(|&(i, _)| i)
-                    .collect();
-
-                let low_cards: Vec<(usize, u8)> = ranks
-                    .iter()
-                    .filter(|&&(_, rank)| (2..=4).contains(&rank))
-                    .copied()
-                    .collect();
-
-                if !ace_indices.is_empty()
-                    && low_cards.len() >= 3
-                    && low_cards.iter().any(|&(_, r)| r == 2)
-                    && low_cards.iter().any(|&(_, r)| r == 3)
-                    && low_cards.iter().any(|&(_, r)| r == 4)
-                {
-                    let mut result = Vec::new();
-                    // Add the Ace
-                    result.push(cards[ace_indices[0]]);
-                    // Add the 2, 3, 4
-                    for &(i, r) in &low_cards {
-                        if (2..=4).contains(&r) && result.len() < 4 {
-                            result.push(cards[i]);
-                        }
-                    }
-                    return result;
-                }
-
-                vec![]
             } else {
-                // Regular 5-card straight
-                cards.to_vec()
+                // Use the original logic for regular straights
+                if four_fingers_active && !is_straight(cards) && has_four_card_straight(cards) {
+                    // Find the 4 cards that form a straight
+                    find_four_card_straight(cards)
+                } else {
+                    // Regular 5-card straight
+                    cards.to_vec()
+                }
             }
         }
         PokerHand::Flush => {
@@ -423,33 +865,51 @@ pub fn get_scoring_cards(
             }
         }
         PokerHand::StraightFlush => {
-            if four_fingers_active && !(is_straight(cards) && is_flush(cards)) {
-                // This is a complex case - we might have a 4-card straight and a 4-card flush
-                // which might not be the same 4 cards
-
-                // First check if we have a 4-card straight flush (same 4 cards)
-                let suit_groups = group_by_suit(cards);
-
-                for (_, suit_cards) in suit_groups {
-                    if suit_cards.len() >= 4
-                        && has_four_card_straight(
-                            &suit_cards.iter().map(|&&c| c).collect::<Vec<Card>>(),
-                        )
-                    {
-                        // We found a 4-card straight flush
-                        return suit_cards.iter().map(|&&c| c).collect();
-                    }
+            if shortcut_active {
+                // First, try to find a 5-card straight flush with gaps
+                if find_shortcut_straight_flush_cards(cards).len() == 5 {
+                    return find_shortcut_straight_flush_cards(cards);
                 }
 
-                // If we reach here, we might have a 4-card straight and a 4-card flush on different cards
-                // The assignment suggests this should still count as a straight flush
-                // This is the most complex case and would need detailed implementation
-                // For simplicity, just return all cards for now
-                cards.to_vec()
+                // Next, check for 4-card straight flush with gaps (Four Fingers active)
+                if four_fingers_active && find_four_card_shortcut_straight_flush(cards).len() == 4 {
+                    return find_four_card_shortcut_straight_flush(cards);
+                }
+
+                // For the complex case with Four Fingers where different cards make the straight and flush
+                if four_fingers_active {
+                    // Find cards that contribute to both a 4-card flush and a 4-card shortcut straight
+                    // This is the case described in the assignment: Q♠ J♠ 9♦ 7♠ 3♠
+                    let flush_cards = find_four_card_flush(cards);
+                    let straight_cards = find_four_card_shortcut_straight(cards);
+
+                    // If we have both, return the combination (might be all cards)
+                    if !flush_cards.is_empty() && !straight_cards.is_empty() {
+                        let mut result = Vec::new();
+                        let mut used_indices = std::collections::HashSet::new();
+
+                        // Add all cards from flush and straight without duplicates
+                        for card in cards {
+                            if (flush_cards.contains(card) || straight_cards.contains(card))
+                                && !used_indices.contains(&card.rank)
+                            {
+                                result.push(*card);
+                                used_indices.insert(card.rank);
+                            }
+                        }
+
+                        return result;
+                    }
+                }
             } else {
-                // Regular 5-card straight flush
-                cards.to_vec()
+                // Regular straight flush logic
+                if four_fingers_active && find_four_card_straight_flush(cards).len() == 4 {
+                    return find_four_card_straight_flush(cards);
+                }
             }
+
+            // Default to all cards if no specific cards found
+            cards.to_vec()
         }
         // For these hands, all cards are scored
         PokerHand::FiveOfAKind
@@ -472,6 +932,7 @@ pub struct HandConditions {
 pub fn analyze_hand_conditions(
     cards: &[Card],
     four_fingers_active: bool,
+    shortcut_active: bool,
 ) -> GameResult<HandConditions> {
     let mut conditions = HandConditions::default();
 
@@ -498,8 +959,10 @@ pub fn analyze_hand_conditions(
     conditions.contains_two_pair = different_pairs.len() >= 2;
 
     // Check for straight (5-card or 4-card with Four Fingers)
-    conditions.contains_straight =
-        is_straight(cards) || (four_fingers_active && has_four_card_straight(cards));
+    conditions.contains_straight = is_straight(cards)
+        || (four_fingers_active && has_four_card_straight(cards))
+        || (shortcut_active && has_shortcut_straight(cards))
+        || (four_fingers_active && shortcut_active && has_four_card_shortcut_straight(cards));
 
     // Check for flush (5-card or 4-card with Four Fingers)
     conditions.contains_flush =

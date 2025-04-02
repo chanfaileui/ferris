@@ -130,14 +130,17 @@ impl GameState {
     }
 
     pub fn score(&mut self) -> GameResult<(Chips, Mult)> {
-        // dbg!("cards_played {:?}", &self.round.cards_played);
-        // dbg!("cards held in hand {:?}", &self.round.cards_held_in_hand);
-        // dbg!("jokers! {:?}", &self.round.jokers);
+        // println!("cards_played {:?}", &self.round.cards_played);
+        // println!("cards held in hand {:?}", &self.round.cards_held_in_hand);
+        // println!("jokers! {:?}", &self.round.jokers);
 
         // Basic check
         if self.round.cards_played.is_empty() {
             return Ok((0.0, 0.0));
         }
+
+        // Step 1: Process jokers first to set any flags
+        //?
 
         // Check if any jokers are active
         self.four_fingers_active = self
@@ -150,12 +153,31 @@ impl GameState {
             .jokers
             .iter()
             .any(|joker_card| joker_card.joker == Joker::Shortcut);
+        self.pareidolia_active = self
+            .round
+            .jokers
+            .iter()
+            .any(|joker_card| joker_card.joker == Joker::Pareidolia);
+        self.splash_active = self
+            .round
+            .jokers
+            .iter()
+            .any(|joker_card| joker_card.joker == Joker::Splash);
+        self.smeared_joker_active = self
+            .round
+            .jokers
+            .iter()
+            .any(|joker_card| joker_card.joker == Joker::SmearedJoker);
+
         self.first_face_card_processed = false;
 
         // Step 1: Identify the poker hand
-        let poker_hand: PokerHand =
-            identify_hand(&self.round.cards_played, self.four_fingers_active)
-                .map_err(|e| GameError::InvalidHand(e.to_string()))?;
+        let poker_hand: PokerHand = identify_hand(
+            &self.round.cards_played,
+            self.four_fingers_active,
+            self.shortcut_active,
+        )
+        .map_err(|e| GameError::InvalidHand(e.to_string()))?;
         let (base_chips, base_mult) = poker_hand.hand_value();
         self.chips = base_chips;
         self.mult = base_mult;
@@ -170,8 +192,11 @@ impl GameState {
         // // Step 2: Get scoring cards
         // let scoring_cards: Vec<Card> = get_scoring_cards(&poker_hand, &self.round.cards_played);
         // Step 3: Analyze hand conditions for joker effects
-        let conditions =
-            analyze_hand_conditions(&self.round.cards_played, self.four_fingers_active)?;
+        let conditions = analyze_hand_conditions(
+            &self.round.cards_played,
+            self.four_fingers_active,
+            self.shortcut_active,
+        )?;
         self.contains_pair = conditions.contains_pair;
         self.contains_two_pair = conditions.contains_two_pair;
         self.contains_three_of_a_kind = conditions.contains_three_of_a_kind;
@@ -188,6 +213,7 @@ impl GameState {
                 &poker_hand,
                 &self.round.cards_played,
                 self.four_fingers_active,
+                self.shortcut_active,
             )
         };
 
