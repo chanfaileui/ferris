@@ -85,18 +85,15 @@ impl JokerEffect for Baron {
         &self,
         game_state: &mut GameState,
         joker_card: &JokerCard,
-        _current_card: &Card,
+        current_card: &Card,
     ) -> GameResult<()> {
-        // Find all kings in hand
-        for card in &game_state.round.cards_held_in_hand {
-            if card.rank == Rank::King {
-                game_state.mult *= 1.5;
-                let message = format!(
-                    "{} {} x1.5 Mult ({} x {})",
-                    joker_card.joker, card, game_state.chips, game_state.mult
-                );
-                explain_dbg!(game_state, "{}", message);
-            }
+        if current_card.rank == Rank::King {
+            game_state.mult *= 1.5;
+            let message = format!(
+                "{} {} x1.5 Mult ({} x {})",
+                joker_card.joker, current_card, game_state.chips, game_state.mult
+            );
+            explain_dbg!(game_state, "{}", message);
         }
 
         Ok(())
@@ -115,23 +112,15 @@ impl JokerEffect for GreedyJoker {
         &self,
         game_state: &mut GameState,
         joker_card: &JokerCard,
-        _current_card: &Card,
+        current_card: &Card,
     ) -> GameResult<()> {
-        // Count diamonds cards (including wild)
-        let diamond_count = game_state
-            .scoring_cards
-            .iter()
-            .filter(|card| {
-                card.suit == Suit::Diamonds || card.enhancement == Some(Enhancement::Wild)
-            })
-            .count();
-
-        if diamond_count > 0 {
-            let mult_increase = 3.0 * (diamond_count as f64);
-            game_state.mult += mult_increase;
+        if current_card.suit == Suit::Diamonds
+            || current_card.enhancement == Some(Enhancement::Wild)
+        {
+            game_state.mult += 3.0;
             let message = format!(
-                "{} +{} Mult ({} x {})",
-                joker_card.joker, mult_increase, game_state.chips, game_state.mult
+                "{} {} +3 Mult ({} x {})",
+                joker_card.joker, current_card, game_state.chips, game_state.mult
             );
             explain_dbg!(game_state, "{}", message);
         }
@@ -152,21 +141,14 @@ impl JokerEffect for LustyJoker {
         &self,
         game_state: &mut GameState,
         joker_card: &JokerCard,
-        _current_card: &Card,
+        current_card: &Card,
     ) -> GameResult<()> {
-        // Count hearts cards (including wild)
-        let heart_count = game_state
-            .scoring_cards
-            .iter()
-            .filter(|card| card.suit == Suit::Hearts || card.enhancement == Some(Enhancement::Wild))
-            .count();
-
-        if heart_count > 0 {
-            let mult_increase = 3.0 * (heart_count as f64);
-            game_state.mult += mult_increase;
+        if current_card.suit == Suit::Hearts || current_card.enhancement == Some(Enhancement::Wild)
+        {
+            game_state.mult += 3.0;
             let message = format!(
-                "{} +{} Mult ({} x {})",
-                joker_card.joker, mult_increase, game_state.chips, game_state.mult
+                "{} {} +3 Mult ({} x {})",
+                joker_card.joker, current_card, game_state.chips, game_state.mult
             );
             explain_dbg!(game_state, "{}", message);
         }
@@ -187,21 +169,14 @@ impl JokerEffect for WrathfulJoker {
         &self,
         game_state: &mut GameState,
         joker_card: &JokerCard,
-        _current_card: &Card,
+        current_card: &Card,
     ) -> GameResult<()> {
-        // Count spades cards (including wild)
-        let spade_count = game_state
-            .scoring_cards
-            .iter()
-            .filter(|card| card.suit == Suit::Spades || card.enhancement == Some(Enhancement::Wild))
-            .count();
-
-        if spade_count > 0 {
-            let mult_increase = 3.0 * (spade_count as f64);
-            game_state.mult += mult_increase;
+        if current_card.suit == Suit::Spades || current_card.enhancement == Some(Enhancement::Wild)
+        {
+            game_state.mult += 3.0;
             let message = format!(
-                "{} +{} Mult ({} x {})",
-                joker_card.joker, mult_increase, game_state.chips, game_state.mult
+                "{} {} +3 Mult ({} x {})",
+                joker_card.joker, current_card, game_state.chips, game_state.mult
             );
             explain_dbg!(game_state, "{}", message);
         }
