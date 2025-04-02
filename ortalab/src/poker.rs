@@ -177,6 +177,11 @@ pub fn identify_hand(cards: &[Card], four_fingers_active: bool) -> GameResult<Po
     // println!("group by suit: {:?}", group_suit(cards));
     // println!("group by suit: {:?}", group_by_suit(cards));
 
+    if cards.len() < 2 {
+        // With only 0 or 1 card, it's always a High Card
+        return Ok(PokerHand::HighCard);
+    }
+
     let rank_count = group_rank(cards);
     let all_same_rank = rank_count.len() == 1;
     let has_flush = is_flush(cards);
@@ -409,11 +414,7 @@ pub fn get_scoring_cards(
                     .find(|(_, suit_cards)| suit_cards.len() >= 4 && suit_cards.len() < 5)
                 {
                     // Take the first 4 cards of that suit
-                    return suit_cards
-                        .iter()
-                        .take(4)
-                        .map(|&&card| card)
-                        .collect();
+                    return suit_cards.iter().take(4).map(|&&card| card).collect();
                 }
                 vec![]
             } else {
@@ -432,10 +433,7 @@ pub fn get_scoring_cards(
                 for (_, suit_cards) in suit_groups {
                     if suit_cards.len() >= 4
                         && has_four_card_straight(
-                            &suit_cards
-                                .iter()
-                                .map(|&&c| c)
-                                .collect::<Vec<Card>>(),
+                            &suit_cards.iter().map(|&&c| c).collect::<Vec<Card>>(),
                         )
                     {
                         // We found a 4-card straight flush

@@ -87,18 +87,36 @@ impl GameState {
             if effect.activation_type() == jokers::ActivationType::OnHeld && effect.can_apply(self)
             {
                 // For Raised Fist joker, only apply it if the current card is the lowest in hand
+                // AND it's the right-most (last) instance of the lowest rank
                 if joker_card.joker == Joker::RaisedFist {
-                    // Find the card with the lowest rank in hand
-                    let lowest_card = self
+                    // Find the cards with the lowest rank in hand
+                    let lowest_rank = self
                         .round
                         .cards_held_in_hand
                         .iter()
-                        .min_by_key(|c| c.rank.rank_value() as i32);
+                        .min_by_key(|c| c.rank)
+                        .map(|c| c.rank);
 
-                    // Only apply if the current card is the lowest one
-                    if let Some(lowest) = lowest_card {
-                        if lowest.rank == card.rank && lowest.suit == card.suit {
-                            effect.apply(self, joker_card, card)?;
+                    if let Some(lowest) = lowest_rank {
+                        // Find all cards with this lowest rank
+                        let lowest_cards: Vec<&Card> = self
+                            .round
+                            .cards_held_in_hand
+                            .iter()
+                            .filter(|c| c.rank == lowest)
+                            .collect();
+
+                        // Get the last (right-most) card with this rank
+                        let right_most = lowest_cards.last();
+
+                        // Only apply if the current card is the right-most lowest one
+                        if let Some(right_most_card) = right_most {
+                            if right_most_card.rank == card.rank
+                                && right_most_card.suit == card.suit
+                                && right_most_card.enhancement == card.enhancement
+                            {
+                                effect.apply(self, joker_card, card)?;
+                            }
                         }
                     }
                 } else {
@@ -122,15 +140,22 @@ impl GameState {
         }
 
         // Check if any jokers are active
-        self.four_fingers_active = self.round.jokers.iter()
+        self.four_fingers_active = self
+            .round
+            .jokers
+            .iter()
             .any(|joker_card| joker_card.joker == Joker::FourFingers);
-        self.shortcut_active = self.round.jokers.iter()
+        self.shortcut_active = self
+            .round
+            .jokers
+            .iter()
             .any(|joker_card| joker_card.joker == Joker::Shortcut);
         self.first_face_card_processed = false;
 
         // Step 1: Identify the poker hand
-        let poker_hand: PokerHand = identify_hand(&self.round.cards_played, self.four_fingers_active)
-            .map_err(|e| GameError::InvalidHand(e.to_string()))?;
+        let poker_hand: PokerHand =
+            identify_hand(&self.round.cards_played, self.four_fingers_active)
+                .map_err(|e| GameError::InvalidHand(e.to_string()))?;
         let (base_chips, base_mult) = poker_hand.hand_value();
         self.chips = base_chips;
         self.mult = base_mult;
@@ -145,7 +170,8 @@ impl GameState {
         // // Step 2: Get scoring cards
         // let scoring_cards: Vec<Card> = get_scoring_cards(&poker_hand, &self.round.cards_played);
         // Step 3: Analyze hand conditions for joker effects
-        let conditions = analyze_hand_conditions(&self.round.cards_played, self.four_fingers_active)?;
+        let conditions =
+            analyze_hand_conditions(&self.round.cards_played, self.four_fingers_active)?;
         self.contains_pair = conditions.contains_pair;
         self.contains_two_pair = conditions.contains_two_pair;
         self.contains_three_of_a_kind = conditions.contains_three_of_a_kind;
@@ -158,7 +184,11 @@ impl GameState {
             self.round.cards_played.to_vec()
         } else {
             // Otherwise, only cards that form the poker hand
-            get_scoring_cards(&poker_hand, &self.round.cards_played, self.four_fingers_active)
+            get_scoring_cards(
+                &poker_hand,
+                &self.round.cards_played,
+                self.four_fingers_active,
+            )
         };
 
         // Step 4: Process each card separately

@@ -20,28 +20,15 @@ impl JokerEffect for RaisedFist {
         &self,
         game_state: &mut GameState,
         joker_card: &JokerCard,
-        _current_card: &Card,
+        current_card: &Card,
     ) -> GameResult<()> {
-        // Find the lowest ranked card in hand
-        if game_state.round.cards_held_in_hand.is_empty() {
-            return Ok(());
-        }
-
-        let lowest_card = game_state
-            .round
-            .cards_held_in_hand
-            .iter()
-            .min_by_key(|card| card.rank)
-            .unwrap();
-
-        // Double the rank value
-        let rank_value = lowest_card.rank.rank_value();
+        let rank_value = current_card.rank.rank_value();
         let mult_increase = 2.0 * rank_value;
         game_state.mult += mult_increase;
 
         let message = format!(
             "{} {} +{} Mult ({} x {})",
-            joker_card.joker, lowest_card, mult_increase, game_state.chips, game_state.mult
+            joker_card.joker, current_card, mult_increase, game_state.chips, game_state.mult
         );
         explain_dbg!(game_state, "{}", message);
         Ok(())
@@ -235,21 +222,13 @@ impl JokerEffect for GluttonousJoker {
         &self,
         game_state: &mut GameState,
         joker_card: &JokerCard,
-        _current_card: &Card,
+        current_card: &Card,
     ) -> GameResult<()> {
-        // Count clubs cards (including wild)
-        let club_count = game_state
-            .scoring_cards
-            .iter()
-            .filter(|card| card.suit == Suit::Clubs || card.enhancement == Some(Enhancement::Wild))
-            .count();
-
-        if club_count > 0 {
-            let mult_increase = 3.0 * (club_count as f64);
-            game_state.mult += mult_increase;
+        if current_card.suit == Suit::Clubs || current_card.enhancement == Some(Enhancement::Wild) {
+            game_state.mult += 3.0;
             let message = format!(
-                "{} +{} Mult ({} x {})",
-                joker_card.joker, mult_increase, game_state.chips, game_state.mult
+                "{} {} +3 Mult ({} x {})",
+                joker_card.joker, current_card, game_state.chips, game_state.mult
             );
             explain_dbg!(game_state, "{}", message);
         }
@@ -336,7 +315,10 @@ impl JokerEffect for EvenSteven {
         joker_card: &JokerCard,
         current_card: &Card,
     ) -> GameResult<()> {
-        let is_even_rank = matches!(current_card.rank, Rank::Ten | Rank::Eight | Rank::Six | Rank::Four | Rank::Two);
+        let is_even_rank = matches!(
+            current_card.rank,
+            Rank::Ten | Rank::Eight | Rank::Six | Rank::Four | Rank::Two
+        );
 
         if is_even_rank {
             game_state.mult += 4.0;
@@ -365,12 +347,15 @@ impl JokerEffect for OddTodd {
         joker_card: &JokerCard,
         current_card: &Card,
     ) -> GameResult<()> {
-        let is_odd_rank = matches!(current_card.rank, Rank::Ace | Rank::Nine | Rank::Seven | Rank::Five | Rank::Three);
+        let is_odd_rank = matches!(
+            current_card.rank,
+            Rank::Ace | Rank::Nine | Rank::Seven | Rank::Five | Rank::Three
+        );
 
         if is_odd_rank {
-            game_state.mult += 4.0;
+            game_state.chips += 31.0;
             let message = format!(
-                "{} {} +4 Mult ({} x {})",
+                "{} {} +31 Chips ({} x {})",
                 joker_card.joker, current_card, game_state.chips, game_state.mult
             );
             explain_dbg!(game_state, "{}", message);
