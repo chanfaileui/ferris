@@ -37,8 +37,17 @@ differently now.
 
 > - TODO
 > I previously used GameResult<Vec<String>> to handle `--explain` which added unnecessary overhead to functions
-> so I shifted towards using a macro to handle explanations
+> so I shifted towards using macros to handle explanations
 > I apologise if I wasn't able to change the majority of instances due to the time constraints of the assignment
+> some cloning + to_vec :( but only for small hands, it was mentioned in the forums that it's a relatively minor note
+https://discourse02.cse.unsw.edu.au/25T1/COMP6991/t/using-clone/5319/8
+
+Also, I pass a placeholder and have Independent jokers simply ignore the card parameter
+It really isn't the most pragmatic design but to refactor would mean setting up a JokerTarget enum
+and excessive amounts of refactoring
+
+placeholder card is honestly overkill for Independent jokers but I couldnt fix without significant refactoring
+
 
 ## Questions to the marker
 

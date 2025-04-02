@@ -3,6 +3,7 @@ use crate::errors::GameResult;
 use crate::game::GameState;
 use crate::jokers::ActivationType;
 use crate::jokers::JokerEffect;
+use ortalib::Card;
 use ortalib::{Enhancement, JokerCard, Rank, Suit};
 
 use crate::explain_dbg;
@@ -15,7 +16,12 @@ impl JokerEffect for RaisedFist {
         ActivationType::OnHeld
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         // Find the lowest ranked card in hand
         if game_state.round.cards_held_in_hand.is_empty() {
             return Ok(());
@@ -64,7 +70,12 @@ impl JokerEffect for Blackboard {
         })
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         game_state.mult *= 3.0;
         let message = format!(
             "{} x3 Mult ({} x {})",
@@ -83,7 +94,12 @@ impl JokerEffect for Baron {
         ActivationType::OnHeld
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         // Find all kings in hand
         for card in &game_state.round.cards_held_in_hand {
             if card.rank == Rank::King {
@@ -108,7 +124,12 @@ impl JokerEffect for GreedyJoker {
         ActivationType::OnScored
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         // Count diamonds cards (including wild)
         let diamond_count = game_state
             .scoring_cards
@@ -140,7 +161,12 @@ impl JokerEffect for LustyJoker {
         ActivationType::OnScored
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         // Count hearts cards (including wild)
         let heart_count = game_state
             .scoring_cards
@@ -170,7 +196,12 @@ impl JokerEffect for WrathfulJoker {
         ActivationType::OnScored
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         // Count spades cards (including wild)
         let spade_count = game_state
             .scoring_cards
@@ -200,7 +231,12 @@ impl JokerEffect for GluttonousJoker {
         ActivationType::OnScored
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         // Count clubs cards (including wild)
         let club_count = game_state
             .scoring_cards
@@ -230,7 +266,12 @@ impl JokerEffect for Fibonacci {
         ActivationType::OnScored
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         // Check each scoring card for fibonacci numbers
         for card in &game_state.scoring_cards {
             if card.rank == Rank::Ace
@@ -252,28 +293,29 @@ impl JokerEffect for Fibonacci {
     }
 }
 
-// TODO
 // Played face cards give Chips +30 when scored
 pub struct ScaryFace;
 
-// Implementations for these would follow the same pattern as above
 impl JokerEffect for ScaryFace {
     fn activation_type(&self) -> ActivationType {
         ActivationType::OnScored
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
-        // Check each scoring card for face cards
-        for card in &game_state.scoring_cards {
-            // Using Ortalib's is_face method
-            if card.rank.is_face() {
-                game_state.chips += 30.0;
-                let message = format!(
-                    "{} {} +30 Chips ({} x {})",
-                    joker_card.joker, card, game_state.chips, game_state.mult
-                );
-                explain_dbg!(game_state, "{}", message);
-            }
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        current_card: &Card,
+    ) -> GameResult<()> {
+        let is_face = game_state.pareidolia_active || current_card.rank.is_face();
+
+        if is_face {
+            game_state.chips += 30.0;
+            let message = format!(
+                "{} {} +30 Chips ({} x {})",
+                joker_card.joker, current_card, game_state.chips, game_state.mult
+            );
+            explain_dbg!(game_state, "{}", message);
         }
 
         Ok(())
@@ -288,20 +330,19 @@ impl JokerEffect for EvenSteven {
         ActivationType::OnScored
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
-        // Count clubs cards (including wild)
-        let club_count = game_state
-            .scoring_cards
-            .iter()
-            .filter(|card| card.suit == Suit::Clubs || card.enhancement == Some(Enhancement::Wild))
-            .count();
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        current_card: &Card,
+    ) -> GameResult<()> {
+        let is_even_rank = matches!(current_card.rank, Rank::Ten | Rank::Eight | Rank::Six | Rank::Four | Rank::Two);
 
-        if club_count > 0 {
-            let mult_increase = 3.0 * (club_count as f64);
-            game_state.mult += mult_increase;
+        if is_even_rank {
+            game_state.mult += 4.0;
             let message = format!(
-                "{} +{} Mult ({} x {})",
-                joker_card.joker, mult_increase, game_state.chips, game_state.mult
+                "{} {} +4 Mult ({} x {})",
+                joker_card.joker, current_card, game_state.chips, game_state.mult
             );
             explain_dbg!(game_state, "{}", message);
         }
@@ -318,20 +359,19 @@ impl JokerEffect for OddTodd {
         ActivationType::OnScored
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
-        // Count clubs cards (including wild)
-        let club_count = game_state
-            .scoring_cards
-            .iter()
-            .filter(|card| card.suit == Suit::Clubs || card.enhancement == Some(Enhancement::Wild))
-            .count();
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        current_card: &Card,
+    ) -> GameResult<()> {
+        let is_odd_rank = matches!(current_card.rank, Rank::Ace | Rank::Nine | Rank::Seven | Rank::Five | Rank::Three);
 
-        if club_count > 0 {
-            let mult_increase = 3.0 * (club_count as f64);
-            game_state.mult += mult_increase;
+        if is_odd_rank {
+            game_state.mult += 4.0;
             let message = format!(
-                "{} +{} Mult ({} x {})",
-                joker_card.joker, mult_increase, game_state.chips, game_state.mult
+                "{} {} +4 Mult ({} x {})",
+                joker_card.joker, current_card, game_state.chips, game_state.mult
             );
             explain_dbg!(game_state, "{}", message);
         }
@@ -348,24 +388,23 @@ impl JokerEffect for Photograph {
         ActivationType::OnScored
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
-        // Count clubs cards (including wild)
-        let club_count = game_state
-            .scoring_cards
-            .iter()
-            .filter(|card| card.suit == Suit::Clubs || card.enhancement == Some(Enhancement::Wild))
-            .count();
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        current_card: &Card,
+    ) -> GameResult<()> {
+        let is_face = game_state.pareidolia_active || current_card.rank.is_face();
 
-        if club_count > 0 {
-            let mult_increase = 3.0 * (club_count as f64);
-            game_state.mult += mult_increase;
+        if is_face && !game_state.first_face_card_processed {
+            game_state.mult *= 2.0;
+            game_state.first_face_card_processed = true;
             let message = format!(
-                "{} +{} Mult ({} x {})",
-                joker_card.joker, mult_increase, game_state.chips, game_state.mult
+                "{} {} x2 Mult ({} x {})",
+                joker_card.joker, current_card, game_state.chips, game_state.mult
             );
             explain_dbg!(game_state, "{}", message);
         }
-
         Ok(())
     }
 }
@@ -378,20 +417,19 @@ impl JokerEffect for SmileyFace {
         ActivationType::OnScored
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
-        // Count clubs cards (including wild)
-        let club_count = game_state
-            .scoring_cards
-            .iter()
-            .filter(|card| card.suit == Suit::Clubs || card.enhancement == Some(Enhancement::Wild))
-            .count();
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        current_card: &Card,
+    ) -> GameResult<()> {
+        let is_face = game_state.pareidolia_active || current_card.rank.is_face();
 
-        if club_count > 0 {
-            let mult_increase = 3.0 * (club_count as f64);
-            game_state.mult += mult_increase;
+        if is_face {
+            game_state.mult += 5.0;
             let message = format!(
-                "{} +{} Mult ({} x {})",
-                joker_card.joker, mult_increase, game_state.chips, game_state.mult
+                "{} {} +5 Mult ({} x {})",
+                joker_card.joker, current_card, game_state.chips, game_state.mult
             );
             explain_dbg!(game_state, "{}", message);
         }
@@ -407,24 +445,46 @@ impl JokerEffect for FlowerPot {
         ActivationType::Independent
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
-        // Count clubs cards (including wild)
-        let club_count = game_state
-            .scoring_cards
-            .iter()
-            .filter(|card| card.suit == Suit::Clubs || card.enhancement == Some(Enhancement::Wild))
-            .count();
-
-        if club_count > 0 {
-            let mult_increase = 3.0 * (club_count as f64);
-            game_state.mult += mult_increase;
-            let message = format!(
-                "{} +{} Mult ({} x {})",
-                joker_card.joker, mult_increase, game_state.chips, game_state.mult
-            );
-            explain_dbg!(game_state, "{}", message);
+    fn can_apply(&self, game_state: &GameState) -> bool {
+        // Need to have at least 4 scoring cards
+        if game_state.scoring_cards.len() < 4 {
+            return false;
         }
 
+        // Check if each suit is present in the scoring cards
+        let has_diamonds = game_state
+            .scoring_cards
+            .iter()
+            .any(|card| card.suit == Suit::Diamonds || card.enhancement == Some(Enhancement::Wild));
+        let has_clubs = game_state
+            .scoring_cards
+            .iter()
+            .any(|card| card.suit == Suit::Clubs || card.enhancement == Some(Enhancement::Wild));
+        let has_hearts = game_state
+            .scoring_cards
+            .iter()
+            .any(|card| card.suit == Suit::Hearts || card.enhancement == Some(Enhancement::Wild));
+        let has_spades = game_state
+            .scoring_cards
+            .iter()
+            .any(|card| card.suit == Suit::Spades || card.enhancement == Some(Enhancement::Wild));
+
+        // Need all suits to be present
+        has_diamonds && has_clubs && has_hearts && has_spades
+    }
+
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
+        game_state.mult *= 3.0;
+        let message = format!(
+            "{} x3 Mult ({} x {})",
+            joker_card.joker, game_state.chips, game_state.mult
+        );
+        explain_dbg!(game_state, "{}", message);
         Ok(())
     }
 }

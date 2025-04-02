@@ -3,7 +3,7 @@ use crate::errors::GameResult;
 use crate::game::GameState;
 use crate::jokers::ActivationType;
 use crate::jokers::JokerEffect;
-use ortalib::JokerCard;
+use ortalib::{Card, JokerCard};
 
 use crate::explain_dbg;
 
@@ -15,7 +15,12 @@ impl JokerEffect for Joker {
         ActivationType::Independent
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         game_state.mult += 4.0;
         let message = format!(
             "{} +4 Mult ({} x {})",
@@ -38,7 +43,12 @@ impl JokerEffect for JollyJoker {
         game_state.contains_pair
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         game_state.mult += 8.0;
         let message = format!(
             "{} +8 Mult ({} x {})",
@@ -61,7 +71,12 @@ impl JokerEffect for ZanyJoker {
         game_state.contains_three_of_a_kind
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         game_state.mult += 12.0;
         let message = format!(
             "{} +12 Mult ({} x {})",
@@ -84,7 +99,12 @@ impl JokerEffect for MadJoker {
         game_state.contains_two_pair
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         game_state.mult += 10.0;
         let message = format!(
             "{} +10 Mult ({} x {})",
@@ -107,7 +127,12 @@ impl JokerEffect for CrazyJoker {
         game_state.contains_straight
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         game_state.mult += 12.0;
         let message = format!(
             "{} +12 Mult ({} x {})",
@@ -130,7 +155,12 @@ impl JokerEffect for DrollJoker {
         game_state.contains_flush
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         game_state.mult += 10.0;
         let message = format!(
             "{} +10 Mult ({} x {})",
@@ -153,7 +183,12 @@ impl JokerEffect for SlyJoker {
         game_state.contains_pair
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         game_state.chips += 50.0;
         let message = format!(
             "{} +50 Chips ({} x {})",
@@ -176,7 +211,12 @@ impl JokerEffect for WilyJoker {
         game_state.contains_three_of_a_kind
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         game_state.chips += 100.0;
         let message = format!(
             "{} +100 Chips ({} x {})",
@@ -199,7 +239,12 @@ impl JokerEffect for CleverJoker {
         game_state.contains_two_pair
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         game_state.chips += 80.0;
         let message = format!(
             "{} +80 Chips ({} x {})",
@@ -222,7 +267,12 @@ impl JokerEffect for DeviousJoker {
         game_state.contains_straight
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         game_state.chips += 100.0;
         let message = format!(
             "{} +100 Chips ({} x {})",
@@ -245,7 +295,12 @@ impl JokerEffect for CraftyJoker {
         game_state.contains_flush
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         game_state.chips += 80.0;
         let message = format!(
             "{} +80 Chips ({} x {})",
@@ -264,7 +319,12 @@ impl JokerEffect for AbstractJoker {
         ActivationType::Independent
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         let joker_count = game_state.round.jokers.len();
         let mult_increase = 3.0 * (joker_count as f64);
         game_state.mult += mult_increase;

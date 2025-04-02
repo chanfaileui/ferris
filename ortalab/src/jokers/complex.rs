@@ -4,6 +4,7 @@ use crate::game::GameState;
 use crate::jokers::ActivationType;
 use crate::jokers::JokerEffect;
 use crate::jokers::create_joker_effect;
+use ortalib::Card;
 use ortalib::{Joker, JokerCard};
 
 use crate::explain_dbg;
@@ -16,7 +17,12 @@ impl JokerEffect for FourFingers {
         ActivationType::Independent
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         // This effect is passive and is handled during hand identification
         // Update the game state to indicate this joker is active
         game_state.four_fingers_active = true;
@@ -39,7 +45,12 @@ impl JokerEffect for Shortcut {
         ActivationType::Independent
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         // This effect is passive and is handled during hand identification
         // Update the game state to indicate this joker is active
         game_state.shortcut_active = true;
@@ -62,7 +73,12 @@ impl JokerEffect for Mime {
         ActivationType::OnHeld
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         // Mark for retrigger rather than directly applying effects
         // The actual retrigger will happen in the game scoring logic
         game_state.mime_retriggers += 1;
@@ -84,7 +100,12 @@ impl JokerEffect for Pareidolia {
         ActivationType::Independent
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         // This effect is passive and is handled during scoring
         // Update the game state to indicate this joker is active
         game_state.pareidolia_active = true;
@@ -107,7 +128,12 @@ impl JokerEffect for Splash {
         ActivationType::Independent
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         // This effect is passive and is handled during scoring card selection
         // Update the game state to indicate this joker is active
         game_state.splash_active = true;
@@ -130,7 +156,12 @@ impl JokerEffect for SockAndBuskin {
         ActivationType::OnScored
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         // Mark for retrigger rather than directly applying effects
         // The actual retrigger will happen in the game scoring logic
         game_state.sock_and_buskin_retriggers += 1;
@@ -152,7 +183,12 @@ impl JokerEffect for SmearedJoker {
         ActivationType::Independent
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        _current_card: &Card,
+    ) -> GameResult<()> {
         // This effect is passive and is handled during hand identification
         // Update the game state to indicate this joker is active
         game_state.smeared_joker_active = true;
@@ -175,7 +211,12 @@ impl JokerEffect for Blueprint {
         ActivationType::Independent
     }
 
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()> {
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        current_card: &Card,
+    ) -> GameResult<()> {
         // Find the joker to the right
         let joker_index =
             game_state.round.jokers.iter().position(|j| {
@@ -197,7 +238,7 @@ impl JokerEffect for Blueprint {
                         && next_joker.joker != Joker::SmearedJoker
                 {
                     // Apply the copied joker effect
-                    next_joker_effect.apply(game_state, joker_card)?;
+                    next_joker_effect.apply(game_state, joker_card, current_card)?;
                     explain_dbg!(
                         game_state,
                         "{} copies ability of {}",

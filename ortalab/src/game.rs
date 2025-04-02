@@ -35,7 +35,7 @@ pub struct GameState {
     pub sock_and_buskin_retriggers: usize, // Number of Sock and Buskin retriggers
 
     // Used for tracking Photograph joker
-    // pub first_face_card_processed: bool,
+    pub first_face_card_processed: bool,
 }
 
 impl GameState {
@@ -61,7 +61,7 @@ impl GameState {
 
             mime_retriggers: 0,
             sock_and_buskin_retriggers: 0,
-            // first_face_card_processed: false,
+            first_face_card_processed: false,
         }
     }
 
@@ -83,42 +83,44 @@ impl GameState {
         // Apply each applicable joker
         for joker_card in &applicable_jokers {
             let effect = jokers::create_joker_effect(joker_card.joker);
-            effect.apply(self, joker_card)?;
+            effect.apply(self, joker_card, card)?;
         }
 
-        // Handle retriggers if needed
-        if self.sock_and_buskin_retriggers > 0 && card.rank.is_face() {
-            let retrigger_count = self.sock_and_buskin_retriggers;
-            self.sock_and_buskin_retriggers = 0;
+        // // Handle retriggers if needed
+        // if self.sock_and_buskin_retriggers > 0 && card.rank.is_face() {
+        //     let retrigger_count = self.sock_and_buskin_retriggers;
+        //     self.sock_and_buskin_retriggers = 0;
 
-            for _ in 0..retrigger_count {
-                // Reapply base card effects
-                let rank_chips = card.rank.rank_value();
-                self.chips += rank_chips;
-                explain_dbg_bool!(
-                    self.explain_enabled,
-                    "Retrigger: {} +{} Chips ({} x {})",
-                    card,
-                    rank_chips,
-                    self.chips,
-                    self.mult
-                );
+        //     for _ in 0..retrigger_count {
+        //         // Reapply base card effects
+        //         let rank_chips = card.rank.rank_value();
+        //         self.chips += rank_chips;
+        //         explain_dbg_bool!(
+        //             self.explain_enabled,
+        //             "Retrigger: {} +{} Chips ({} x {})",
+        //             card,
+        //             rank_chips,
+        //             self.chips,
+        //             self.mult
+        //         );
 
-                // Reapply enhancements and editions
-                if card.enhancement.is_some() {
-                    apply_enhancement(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
-                }
-                if card.edition.is_some() {
-                    apply_edition(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
-                }
+        //         // Reapply enhancements and editions
+        //         if card.enhancement.is_some() {
+        //             apply_enhancement(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
+        //         }
+        //         if card.edition.is_some() {
+        //             apply_edition(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
+        //         }
 
-                // Reapply jokers without allowing further retriggers
-                for joker_card in &applicable_jokers {
-                    let effect = jokers::create_joker_effect(joker_card.joker);
-                    effect.apply(self, joker_card)?;
-                }
-            }
-        }
+        //         // Reapply jokers without allowing further retriggers
+        //         for joker_card in &self.round.jokers.clone() {
+        //             let effect = jokers::create_joker_effect(joker_card.joker);
+        //             if effect.activation_type() == jokers::ActivationType::OnScored && effect.can_apply(self) {
+        //                 effect.apply(self, joker_card, card)?;
+        //             }
+        //         }
+        //     }
+        // }
 
         Ok(())
     }
@@ -141,42 +143,44 @@ impl GameState {
         // Apply each applicable joker
         for joker_card in &applicable_jokers {
             let effect = jokers::create_joker_effect(joker_card.joker);
-            effect.apply(self, joker_card)?;
+            effect.apply(self, joker_card, card)?;
         }
 
-        // Handle retriggers if needed
-        if self.sock_and_buskin_retriggers > 0 && card.rank.is_face() {
-            let retrigger_count = self.sock_and_buskin_retriggers;
-            self.sock_and_buskin_retriggers = 0;
+        // // Handle retriggers if needed
+        // if self.sock_and_buskin_retriggers > 0 && card.rank.is_face() {
+        //     let retrigger_count = self.sock_and_buskin_retriggers;
+        //     self.sock_and_buskin_retriggers = 0;
 
-            for _ in 0..retrigger_count {
-                // Reapply base card effects
-                let rank_chips = card.rank.rank_value();
-                self.chips += rank_chips;
-                explain_dbg_bool!(
-                    self.explain_enabled,
-                    "Retrigger: {} +{} Chips ({} x {})",
-                    card,
-                    rank_chips,
-                    self.chips,
-                    self.mult
-                );
+        //     for _ in 0..retrigger_count {
+        //         // Reapply base card effects
+        //         let rank_chips = card.rank.rank_value();
+        //         self.chips += rank_chips;
+        //         explain_dbg_bool!(
+        //             self.explain_enabled,
+        //             "Retrigger: {} +{} Chips ({} x {})",
+        //             card,
+        //             rank_chips,
+        //             self.chips,
+        //             self.mult
+        //         );
 
-                // Reapply enhancements and editions
-                if card.enhancement.is_some() {
-                    apply_enhancement(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
-                }
-                if card.edition.is_some() {
-                    apply_edition(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
-                }
+        //         // Reapply enhancements and editions
+        //         if card.enhancement.is_some() {
+        //             apply_enhancement(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
+        //         }
+        //         if card.edition.is_some() {
+        //             apply_edition(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
+        //         }
 
-                // Reapply jokers without allowing further retriggers
-                for joker_card in &applicable_jokers {
-                    let effect = jokers::create_joker_effect(joker_card.joker);
-                    effect.apply(self, joker_card)?;
-                }
-            }
-        }
+        //         // Reapply jokers without allowing further retriggers
+        //         for joker_card in &self.round.jokers.clone() {
+        //             let effect = jokers::create_joker_effect(joker_card.joker);
+        //             if effect.activation_type() == jokers::ActivationType::OnHeld && effect.can_apply(self) {
+        //                 effect.apply(self, joker_card, card)?;
+        //             }
+        //         }
+        //     }
+        // }
 
         Ok(())
     }
@@ -190,6 +194,7 @@ impl GameState {
         if self.round.cards_played.is_empty() {
             return Ok((0.0, 0.0));
         }
+        self.first_face_card_processed = false;
 
         // Step 1: Identify the poker hand
         let poker_hand: PokerHand = identify_hand(&self.round.cards_played)

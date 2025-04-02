@@ -2,7 +2,7 @@ pub mod basic;
 pub mod complex;
 pub mod medium;
 
-use ortalib::{Chips, Edition, Joker, JokerCard, Mult};
+use ortalib::{Card, Chips, Edition, Joker, JokerCard, Mult, Rank, Suit};
 
 use crate::{errors::GameResult, game::GameState};
 
@@ -21,7 +21,12 @@ pub trait JokerEffect {
     /// The type of activation for this joker
     fn activation_type(&self) -> ActivationType;
     /// Apply the joker's effect to the game state
-    fn apply(&self, game_state: &mut GameState, joker_card: &JokerCard) -> GameResult<()>;
+    fn apply(
+        &self,
+        game_state: &mut GameState,
+        joker_card: &JokerCard,
+        current_card: &Card,
+    ) -> GameResult<()>;
 
     /// Optional method for checking if a joker can be applied
     fn can_apply(&self, _game_state: &GameState) -> bool {
@@ -137,7 +142,8 @@ pub fn process_jokers(game_state: &mut GameState) -> GameResult<()> {
         if joker_effect.activation_type() == ActivationType::Independent
             && joker_effect.can_apply(game_state)
         {
-            joker_effect.apply(game_state, joker_card)?;
+            let placeholder_card = Card::new(Rank::Ace, Suit::Diamonds, None, None);
+            joker_effect.apply(game_state, joker_card, &placeholder_card)?;
         }
     }
     // Stage 3: Process Polychrome editions after all jokers have been applied
