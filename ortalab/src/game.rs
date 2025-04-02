@@ -6,7 +6,7 @@ use crate::poker::{analyze_hand_conditions, get_scoring_cards, identify_hand};
 use crate::explain_dbg_bool;
 
 // Import from external crates
-use ortalib::{Card, Chips, Enhancement, Joker, JokerCard, Mult, PokerHand, Round};
+use ortalib::{Card, Chips, Enhancement, Joker, Mult, PokerHand, Round};
 
 #[derive(Debug)]
 pub struct GameState {
@@ -120,10 +120,16 @@ impl GameState {
         if self.round.cards_played.is_empty() {
             return Ok((0.0, 0.0));
         }
+
+        // Check if any jokers are active
+        self.four_fingers_active = self.round.jokers.iter()
+            .any(|joker_card| joker_card.joker == Joker::FourFingers);
+        self.shortcut_active = self.round.jokers.iter()
+            .any(|joker_card| joker_card.joker == Joker::Shortcut);
         self.first_face_card_processed = false;
 
         // Step 1: Identify the poker hand
-        let poker_hand: PokerHand = identify_hand(&self.round.cards_played)
+        let poker_hand: PokerHand = identify_hand(&self.round.cards_played, self.four_fingers_active)
             .map_err(|e| GameError::InvalidHand(e.to_string()))?;
         let (base_chips, base_mult) = poker_hand.hand_value();
         self.chips = base_chips;
@@ -139,7 +145,7 @@ impl GameState {
         // // Step 2: Get scoring cards
         // let scoring_cards: Vec<Card> = get_scoring_cards(&poker_hand, &self.round.cards_played);
         // Step 3: Analyze hand conditions for joker effects
-        let conditions = analyze_hand_conditions(&self.round.cards_played)?;
+        let conditions = analyze_hand_conditions(&self.round.cards_played, self.four_fingers_active)?;
         self.contains_pair = conditions.contains_pair;
         self.contains_two_pair = conditions.contains_two_pair;
         self.contains_three_of_a_kind = conditions.contains_three_of_a_kind;
@@ -152,7 +158,7 @@ impl GameState {
             self.round.cards_played.to_vec()
         } else {
             // Otherwise, only cards that form the poker hand
-            get_scoring_cards(&poker_hand, &self.round.cards_played)
+            get_scoring_cards(&poker_hand, &self.round.cards_played, self.four_fingers_active)
         };
 
         // Step 4: Process each card separately
