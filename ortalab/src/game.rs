@@ -6,7 +6,7 @@ use crate::poker::{analyze_hand_conditions, get_scoring_cards, identify_hand};
 use crate::explain_dbg_bool;
 
 // Import from external crates
-use ortalib::{Card, Chips, Enhancement, Mult, PokerHand, Round};
+use ortalib::{Card, Chips, Enhancement, Joker, JokerCard, Mult, PokerHand, Round};
 
 #[derive(Debug)]
 pub struct GameState {
@@ -67,120 +67,46 @@ impl GameState {
 
     /// Process "OnScored" jokers for a specific card
     fn process_on_scored_jokers(&mut self, card: &Card) -> GameResult<()> {
-        // Get applicable jokers
-        let applicable_jokers: Vec<_> = self
-            .round
-            .jokers
-            .iter()
-            .filter(|joker_card| {
-                let effect = jokers::create_joker_effect(joker_card.joker);
-                effect.activation_type() == jokers::ActivationType::OnScored
-                    && effect.can_apply(self)
-            })
-            .copied()
-            .collect();
-
-        // Apply each applicable joker
-        for joker_card in &applicable_jokers {
+        for joker_card in &self.round.jokers.clone() {
             let effect = jokers::create_joker_effect(joker_card.joker);
-            effect.apply(self, joker_card, card)?;
+            if effect.activation_type() == jokers::ActivationType::OnScored
+                && effect.can_apply(self)
+            {
+                effect.apply(self, joker_card, card)?;
+            }
         }
-
-        // // Handle retriggers if needed
-        // if self.sock_and_buskin_retriggers > 0 && card.rank.is_face() {
-        //     let retrigger_count = self.sock_and_buskin_retriggers;
-        //     self.sock_and_buskin_retriggers = 0;
-
-        //     for _ in 0..retrigger_count {
-        //         // Reapply base card effects
-        //         let rank_chips = card.rank.rank_value();
-        //         self.chips += rank_chips;
-        //         explain_dbg_bool!(
-        //             self.explain_enabled,
-        //             "Retrigger: {} +{} Chips ({} x {})",
-        //             card,
-        //             rank_chips,
-        //             self.chips,
-        //             self.mult
-        //         );
-
-        //         // Reapply enhancements and editions
-        //         if card.enhancement.is_some() {
-        //             apply_enhancement(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
-        //         }
-        //         if card.edition.is_some() {
-        //             apply_edition(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
-        //         }
-
-        //         // Reapply jokers without allowing further retriggers
-        //         for joker_card in &self.round.jokers.clone() {
-        //             let effect = jokers::create_joker_effect(joker_card.joker);
-        //             if effect.activation_type() == jokers::ActivationType::OnScored && effect.can_apply(self) {
-        //                 effect.apply(self, joker_card, card)?;
-        //             }
-        //         }
-        //     }
-        // }
 
         Ok(())
     }
 
     /// Process "OnHeld" jokers for a specific card
-    /// TODO: PLEASE CHECK IF IT ACTUALLY WORKS
     fn process_on_held_jokers(&mut self, card: &Card) -> GameResult<()> {
         // Get applicable jokers
-        let applicable_jokers: Vec<_> = self
-            .round
-            .jokers
-            .iter()
-            .filter(|joker_card| {
-                let effect = jokers::create_joker_effect(joker_card.joker);
-                effect.activation_type() == jokers::ActivationType::OnHeld && effect.can_apply(self)
-            })
-            .copied()
-            .collect();
-
-        // Apply each applicable joker
-        for joker_card in &applicable_jokers {
+        for joker_card in &self.round.jokers.clone() {
             let effect = jokers::create_joker_effect(joker_card.joker);
-            effect.apply(self, joker_card, card)?;
+            if effect.activation_type() == jokers::ActivationType::OnHeld && effect.can_apply(self)
+            {
+                // For Raised Fist joker, only apply it if the current card is the lowest in hand
+                if joker_card.joker == Joker::RaisedFist {
+                    // Find the card with the lowest rank in hand
+                    let lowest_card = self
+                        .round
+                        .cards_held_in_hand
+                        .iter()
+                        .min_by_key(|c| c.rank.rank_value() as i32);
+
+                    // Only apply if the current card is the lowest one
+                    if let Some(lowest) = lowest_card {
+                        if lowest.rank == card.rank && lowest.suit == card.suit {
+                            effect.apply(self, joker_card, card)?;
+                        }
+                    }
+                } else {
+                    // For all other OnHeld jokers, apply as normal
+                    effect.apply(self, joker_card, card)?;
+                }
+            }
         }
-
-        // // Handle retriggers if needed
-        // if self.sock_and_buskin_retriggers > 0 && card.rank.is_face() {
-        //     let retrigger_count = self.sock_and_buskin_retriggers;
-        //     self.sock_and_buskin_retriggers = 0;
-
-        //     for _ in 0..retrigger_count {
-        //         // Reapply base card effects
-        //         let rank_chips = card.rank.rank_value();
-        //         self.chips += rank_chips;
-        //         explain_dbg_bool!(
-        //             self.explain_enabled,
-        //             "Retrigger: {} +{} Chips ({} x {})",
-        //             card,
-        //             rank_chips,
-        //             self.chips,
-        //             self.mult
-        //         );
-
-        //         // Reapply enhancements and editions
-        //         if card.enhancement.is_some() {
-        //             apply_enhancement(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
-        //         }
-        //         if card.edition.is_some() {
-        //             apply_edition(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
-        //         }
-
-        //         // Reapply jokers without allowing further retriggers
-        //         for joker_card in &self.round.jokers.clone() {
-        //             let effect = jokers::create_joker_effect(joker_card.joker);
-        //             if effect.activation_type() == jokers::ActivationType::OnHeld && effect.can_apply(self) {
-        //                 effect.apply(self, joker_card, card)?;
-        //             }
-        //         }
-        //     }
-        // }
 
         Ok(())
     }
