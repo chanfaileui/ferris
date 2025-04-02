@@ -76,6 +76,49 @@ impl GameState {
             }
         }
 
+        // Handle Sock and Buskin retriggers
+        let retrigger_count = self.sock_and_buskin_retriggers;
+        if retrigger_count > 0 && (self.pareidolia_active || card.rank.is_face()) {
+            // Clear the retrigger counter to prevent infinite loops
+            self.sock_and_buskin_retriggers = 0;
+
+            // Apply retriggers
+            for _ in 0..retrigger_count {
+                // Re-apply the card's base chips
+                let rank_chips: f64 = card.rank.rank_value();
+                self.chips += rank_chips;
+
+                explain_dbg_bool!(
+                    self.explain_enabled,
+                    "Retrigger: {} +{} Chips ({} x {})",
+                    card,
+                    rank_chips,
+                    self.chips,
+                    self.mult
+                );
+
+                // Re-apply card enhancements and editions
+                if card.enhancement.is_some() {
+                    apply_enhancement(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
+                }
+
+                if card.edition.is_some() {
+                    apply_edition(card, &mut self.chips, &mut self.mult, self.explain_enabled)?;
+                }
+
+                // Re-apply "OnScored" jokers but exclude Sock and Buskin to prevent infinite loops
+                for joker_card in &self.round.jokers.clone() {
+                    if joker_card.joker != Joker::SockAndBuskin {
+                        let effect = jokers::create_joker_effect(joker_card.joker);
+                        if effect.activation_type() == jokers::ActivationType::OnScored
+                            && effect.can_apply(self)
+                        {
+                            effect.apply(self, joker_card, card)?;
+                        }
+                    }
+                }
+            }
+        }
         Ok(())
     }
 
@@ -122,6 +165,54 @@ impl GameState {
                 } else {
                     // For all other OnHeld jokers, apply as normal
                     effect.apply(self, joker_card, card)?;
+                }
+            }
+        }
+
+        // Handle Mime retriggers
+        let retrigger_count = self.mime_retriggers;
+        if retrigger_count > 0 {
+            // Clear the retrigger counter to prevent infinite loops
+            self.mime_retriggers = 0;
+
+            // Apply retriggers
+            for _ in 0..retrigger_count {
+                // Re-apply Steel enhancement if present
+                if let Some(Enhancement::Steel) = &card.enhancement {
+                    apply_steel_enhancement(
+                        card,
+                        &mut self.chips,
+                        &mut self.mult,
+                        self.explain_enabled,
+                    )?;
+                }
+
+                // Re-apply "OnHeld" jokers but exclude Mime to prevent infinite loops
+                for joker_card in &self.round.jokers.clone() {
+                    if joker_card.joker != Joker::Mime {
+                        let effect = jokers::create_joker_effect(joker_card.joker);
+                        if effect.activation_type() == jokers::ActivationType::OnHeld
+                            && effect.can_apply(self)
+                        {
+                            // Special handling for Raised Fist again
+                            if joker_card.joker == Joker::RaisedFist {
+                                let lowest_rank = self
+                                    .round
+                                    .cards_held_in_hand
+                                    .iter()
+                                    .min_by_key(|c| c.rank)
+                                    .map(|c| c.rank);
+
+                                if let Some(lowest) = lowest_rank {
+                                    if card.rank == lowest {
+                                        effect.apply(self, joker_card, card)?;
+                                    }
+                                }
+                            } else {
+                                effect.apply(self, joker_card, card)?;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -176,6 +267,7 @@ impl GameState {
             &self.round.cards_played,
             self.four_fingers_active,
             self.shortcut_active,
+            self.smeared_joker_active,
         )
         .map_err(|e| GameError::InvalidHand(e.to_string()))?;
         let (base_chips, base_mult) = poker_hand.hand_value();
@@ -196,6 +288,7 @@ impl GameState {
             &self.round.cards_played,
             self.four_fingers_active,
             self.shortcut_active,
+            self.smeared_joker_active,
         )?;
         self.contains_pair = conditions.contains_pair;
         self.contains_two_pair = conditions.contains_two_pair;
@@ -214,6 +307,7 @@ impl GameState {
                 &self.round.cards_played,
                 self.four_fingers_active,
                 self.shortcut_active,
+                self.smeared_joker_active,
             )
         };
 

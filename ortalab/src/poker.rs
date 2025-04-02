@@ -45,7 +45,7 @@ fn group_by_rank(cards: &[Card]) -> IndexMap<Rank, Vec<&Card>> {
 
 /// Returns a IndexMap mapping each suit to the number of cards with that suit in played cards
 /// For example, if five 10s are played, the result will be {♠: [10♠], ♣: [10♣], ♥: [10♥, 10♥], ♦: [10♦]}
-fn group_by_suit(cards: &[Card]) -> IndexMap<Suit, Vec<&Card>> {
+fn group_by_suit(cards: &[Card], smeared_joker_active: bool) -> IndexMap<Suit, Vec<&Card>> {
     let mut suit_cards: IndexMap<Suit, Vec<&Card>> = IndexMap::new();
 
     // if there are any wild cards, we need to count them as all suits
@@ -54,6 +54,11 @@ fn group_by_suit(cards: &[Card]) -> IndexMap<Suit, Vec<&Card>> {
             for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 suit_cards.entry(suit).or_default().push(card);
             }
+        } else if smeared_joker_active {
+            // With Smeared Joker, add the card to its own suit AND the suit of the same color
+            suit_cards.entry(card.suit).or_default().push(card);
+            let same_color_suit = card.suit.other_suit_of_same_color();
+            suit_cards.entry(same_color_suit).or_default().push(card);
         } else {
             suit_cards.entry(card.suit).or_default().push(card);
         }
@@ -62,13 +67,13 @@ fn group_by_suit(cards: &[Card]) -> IndexMap<Suit, Vec<&Card>> {
     suit_cards
 }
 /// Determines if the cards form a flush (all cards of the same suit)
-fn is_flush(cards: &[Card]) -> bool {
+fn is_flush(cards: &[Card], smeared_joker_active: bool) -> bool {
     if cards.len() < 5 {
         return false;
     }
 
     // Group by suit, considering Wild cards as every suit
-    let suit_groups = group_by_suit(cards);
+    let suit_groups = group_by_suit(cards, smeared_joker_active);
 
     // Check if any suit has enough cards for a flush
     suit_groups.values().any(|suit_cards| suit_cards.len() >= 5)
@@ -128,13 +133,13 @@ fn has_three_two_pattern(cards: &[Card]) -> bool {
 }
 
 // Check if there's a 4-card flush in the hand
-fn has_four_card_flush(cards: &[Card]) -> bool {
+fn has_four_card_flush(cards: &[Card], smeared_joker_active: bool) -> bool {
     if cards.len() < 4 {
         return false;
     }
 
     // Group by suit
-    let suit_groups = group_by_suit(cards);
+    let suit_groups = group_by_suit(cards, smeared_joker_active);
     // println!("4card flush suit_groups: {:?}", suit_groups);
     // Check if any suit appears at least 4 times
     suit_groups.values().any(|cards| cards.len() >= 4)
@@ -314,6 +319,7 @@ pub fn identify_hand(
     cards: &[Card],
     four_fingers_active: bool,
     shortcut_active: bool,
+    smeared_joker_active: bool,
 ) -> GameResult<PokerHand> {
     // println!("four fingers active: {:?}", four_fingers_active);
     // println!("group by rank: {:?}", group_rank(cards));
@@ -328,7 +334,7 @@ pub fn identify_hand(
 
     let rank_count = group_rank(cards);
     let all_same_rank = rank_count.len() == 1;
-    let has_flush = is_flush(cards);
+    let has_flush = is_flush(cards, smeared_joker_active);
 
     let has_straight = is_straight(cards) || (shortcut_active && has_shortcut_straight(cards));
 
@@ -339,7 +345,7 @@ pub fn identify_hand(
 
     // Four Fingers joker support - check for 4-card patterns if active
     let has_four_card_flush = if four_fingers_active && cards.len() >= 4 {
-        let result = has_four_card_flush(cards);
+        let result = has_four_card_flush(cards, smeared_joker_active);
         // println!("has_four_card_flush: {:?}", result);
         result
     } else {
@@ -664,9 +670,9 @@ fn find_four_card_straight(cards: &[Card]) -> Vec<Card> {
 }
 
 /// Find cards forming a four-card flush
-fn find_four_card_flush(cards: &[Card]) -> Vec<Card> {
+fn find_four_card_flush(cards: &[Card], smeared_joker_active: bool) -> Vec<Card> {
     // Group by suit
-    let suit_groups = group_by_suit(cards);
+    let suit_groups = group_by_suit(cards, smeared_joker_active);
 
     // Find the first suit with at least 4 cards
     for (_, suit_cards) in suit_groups {
@@ -681,9 +687,9 @@ fn find_four_card_flush(cards: &[Card]) -> Vec<Card> {
 }
 
 /// Find cards forming a four-card straight flush (regular, without gaps)
-fn find_four_card_straight_flush(cards: &[Card]) -> Vec<Card> {
+fn find_four_card_straight_flush(cards: &[Card], smeared_joker_active: bool) -> Vec<Card> {
     // First group by suit
-    let suit_groups = group_by_suit(cards);
+    let suit_groups = group_by_suit(cards, smeared_joker_active);
 
     // Check each suit group for a 4-card straight
     for (_, suit_cards) in suit_groups {
@@ -700,9 +706,9 @@ fn find_four_card_straight_flush(cards: &[Card]) -> Vec<Card> {
 }
 
 /// Find cards forming a shortcut straight flush (5 cards with at most one gap)
-fn find_shortcut_straight_flush_cards(cards: &[Card]) -> Vec<Card> {
+fn find_shortcut_straight_flush_cards(cards: &[Card], smeared_joker_active: bool) -> Vec<Card> {
     // Group by suit
-    let suit_groups = group_by_suit(cards);
+    let suit_groups = group_by_suit(cards, smeared_joker_active);
 
     // Check each suit group for a shortcut straight
     for (_, suit_cards) in suit_groups {
@@ -719,9 +725,9 @@ fn find_shortcut_straight_flush_cards(cards: &[Card]) -> Vec<Card> {
 }
 
 /// Find cards forming a four-card shortcut straight flush
-fn find_four_card_shortcut_straight_flush(cards: &[Card]) -> Vec<Card> {
+fn find_four_card_shortcut_straight_flush(cards: &[Card], smeared_joker_active: bool) -> Vec<Card> {
     // Group by suit
-    let suit_groups = group_by_suit(cards);
+    let suit_groups = group_by_suit(cards, smeared_joker_active);
 
     // Check each suit group for a 4-card shortcut straight
     for (_, suit_cards) in suit_groups {
@@ -747,6 +753,7 @@ pub fn get_scoring_cards(
     cards: &[Card],
     four_fingers_active: bool,
     shortcut_active: bool,
+    smeared_joker_active: bool,
 ) -> Vec<Card> {
     match hand_type {
         PokerHand::HighCard => {
@@ -848,9 +855,9 @@ pub fn get_scoring_cards(
             }
         }
         PokerHand::Flush => {
-            if four_fingers_active && !is_flush(cards) && has_four_card_flush(cards) {
+            if four_fingers_active && !is_flush(cards, smeared_joker_active) && has_four_card_flush(cards, smeared_joker_active) {
                 // Find the suit with at least 4 cards
-                let suit_groups = group_by_suit(cards);
+                let suit_groups = group_by_suit(cards, smeared_joker_active);
                 if let Some((_, suit_cards)) = suit_groups
                     .iter()
                     .find(|(_, suit_cards)| suit_cards.len() >= 4 && suit_cards.len() < 5)
@@ -867,20 +874,20 @@ pub fn get_scoring_cards(
         PokerHand::StraightFlush => {
             if shortcut_active {
                 // First, try to find a 5-card straight flush with gaps
-                if find_shortcut_straight_flush_cards(cards).len() == 5 {
-                    return find_shortcut_straight_flush_cards(cards);
+                if find_shortcut_straight_flush_cards(cards, smeared_joker_active).len() == 5 {
+                    return find_shortcut_straight_flush_cards(cards, smeared_joker_active);
                 }
 
                 // Next, check for 4-card straight flush with gaps (Four Fingers active)
-                if four_fingers_active && find_four_card_shortcut_straight_flush(cards).len() == 4 {
-                    return find_four_card_shortcut_straight_flush(cards);
+                if four_fingers_active && find_four_card_shortcut_straight_flush(cards, smeared_joker_active).len() == 4 {
+                    return find_four_card_shortcut_straight_flush(cards, smeared_joker_active);
                 }
 
                 // For the complex case with Four Fingers where different cards make the straight and flush
                 if four_fingers_active {
                     // Find cards that contribute to both a 4-card flush and a 4-card shortcut straight
                     // This is the case described in the assignment: Q♠ J♠ 9♦ 7♠ 3♠
-                    let flush_cards = find_four_card_flush(cards);
+                    let flush_cards = find_four_card_flush(cards, smeared_joker_active);
                     let straight_cards = find_four_card_shortcut_straight(cards);
 
                     // If we have both, return the combination (might be all cards)
@@ -903,8 +910,8 @@ pub fn get_scoring_cards(
                 }
             } else {
                 // Regular straight flush logic
-                if four_fingers_active && find_four_card_straight_flush(cards).len() == 4 {
-                    return find_four_card_straight_flush(cards);
+                if four_fingers_active && find_four_card_straight_flush(cards, smeared_joker_active).len() == 4 {
+                    return find_four_card_straight_flush(cards, smeared_joker_active);
                 }
             }
 
@@ -933,6 +940,7 @@ pub fn analyze_hand_conditions(
     cards: &[Card],
     four_fingers_active: bool,
     shortcut_active: bool,
+    smeared_joker_active: bool,
 ) -> GameResult<HandConditions> {
     let mut conditions = HandConditions::default();
 
@@ -966,7 +974,7 @@ pub fn analyze_hand_conditions(
 
     // Check for flush (5-card or 4-card with Four Fingers)
     conditions.contains_flush =
-        is_flush(cards) || (four_fingers_active && has_four_card_flush(cards));
+        is_flush(cards, smeared_joker_active) || (four_fingers_active && has_four_card_flush(cards, smeared_joker_active));
 
     Ok(conditions)
 }
