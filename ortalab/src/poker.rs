@@ -345,39 +345,37 @@ fn has_four_card_shortcut_straight(cards: &[Card]) -> bool {
 
     false
 }
-
 pub fn identify_hand(
     cards: &[Card],
     four_fingers_active: bool,
     shortcut_active: bool,
     smeared_joker_active: bool,
 ) -> GameResult<PokerHand> {
-    // println!("four fingers active: {:?}", four_fingers_active);
-    // println!("shortcut active: {:?}", shortcut_active);
-    // println!("group by rank: {:?}", group_rank(cards));
-    // println!("group by rank: {:?}", group_by_rank(cards));
-    // println!("group by suit: {:?}", group_suit(cards));
-    // println!("group by suit: {:?}", group_by_suit(cards));
-
     if cards.len() < 2 {
         // With only 0 or 1 card, it's always a High Card
         return Ok(PokerHand::HighCard);
     }
 
+    // Get rank counts
     let rank_count = group_rank(cards);
-    let all_same_rank = rank_count.len() == 1;
+
+    // For Five of a Kind, we need at least 5 cards of the same rank
+    let all_same_rank = rank_count.len() == 1 && cards.len() >= 5;
+
     let has_flush = is_flush(cards, smeared_joker_active);
-
     let has_straight = is_straight(cards) || (shortcut_active && has_shortcut_straight(cards));
-
     let has_three_two = has_three_two_pattern(cards);
-    let has_four_of_a_kind = rank_count.values().any(|&count| count == 4);
-    let has_three_of_a_kind = rank_count.values().any(|&count| count == 3);
+    let has_four_of_a_kind = rank_count.values().any(|&count| count >= 4);
+    let has_three_of_a_kind = rank_count.values().any(|&count| count >= 3);
+
+    // Count actual pairs (exactly 2 cards of the same rank)
     let pair_count = rank_count.values().filter(|&&count| count == 2).count();
 
-    // Four Fingers joker support - check for 4-card patterns if active
+    // Special case for exactly 2 cards of the same rank
+    let is_simple_pair = cards.len() == 2 && rank_count.len() == 1;
+
+    // Four Fingers joker support
     let has_four_card_flush = if four_fingers_active && cards.len() >= 4 {
-        // println!("has_four_card_flush: {:?}", result);
         has_four_card_flush(cards, smeared_joker_active)
     } else {
         false
@@ -388,13 +386,12 @@ pub fn identify_hand(
     } else {
         false
     };
-    // println!("has_four_card_straight: {:?}", has_four_card_straight);
 
-    // Use combined flush check (5-card flush OR 4-card flush with Four Fingers)
+    // Effective conditions
     let effective_flush = has_flush || has_four_card_flush;
-
-    // Use combined straight check (5-card straight OR 4-card straight with Four Fingers)
     let effective_straight = has_straight || has_four_card_straight;
+
+    // Hand identification in order of precedence
 
     // 12. Flush Five (all same rank and suit)
     if all_same_rank && effective_flush {
@@ -411,7 +408,7 @@ pub fn identify_hand(
         return Ok(PokerHand::FiveOfAKind);
     }
 
-    // 9. Straight Flush (sequential and same suit)
+    // 9. Straight Flush
     if effective_straight && effective_flush {
         return Ok(PokerHand::StraightFlush);
     }
@@ -421,17 +418,17 @@ pub fn identify_hand(
         return Ok(PokerHand::FourOfAKind);
     }
 
-    // 7. Full House (three of one rank, two of another)
+    // 7. Full House
     if has_three_two {
         return Ok(PokerHand::FullHouse);
     }
 
-    // 6. Flush (all same suit)
+    // 6. Flush
     if effective_flush {
         return Ok(PokerHand::Flush);
     }
 
-    // 5. Straight (sequential cards)
+    // 5. Straight
     if effective_straight {
         return Ok(PokerHand::Straight);
     }
@@ -442,16 +439,16 @@ pub fn identify_hand(
     }
 
     // 3. Two Pair
-    if pair_count == 2 {
+    if pair_count >= 2 {
         return Ok(PokerHand::TwoPair);
     }
 
-    // 2. Pair
-    if pair_count == 1 {
+    // 2. Pair - a single pair or exactly two cards of the same rank
+    if pair_count == 1 || is_simple_pair {
         return Ok(PokerHand::Pair);
     }
 
-    // 1. High Card (default when no other hand type matches)
+    // 1. High Card
     Ok(PokerHand::HighCard)
 }
 
@@ -976,34 +973,40 @@ pub fn analyze_hand_conditions(
     let mut conditions = HandConditions::default();
 
     // Analyze ranks to find pairs and three-of-a-kinds
-    let mut rank_counts = std::collections::HashMap::new();
-    for card in cards {
-        *rank_counts.entry(card.rank).or_insert(0) += 1;
-    }
+    let rank_counts = group_rank(cards);
 
     // Check for pairs and three-of-a-kinds
     let mut different_pairs = std::collections::HashSet::new();
 
     for (&rank, &count) in &rank_counts {
+        // A pair is defined as 2 or more cards of the same rank (for joker activation)
+        // This is important for jokers like Jolly Joker that activate when hand "contains a pair"
         if count >= 2 {
             conditions.contains_pair = true;
             different_pairs.insert(rank);
         }
+
+        // Three of a kind is 3+ cards of the same rank
         if count >= 3 {
             conditions.contains_three_of_a_kind = true;
         }
     }
 
+    // Special case: two cards of the same rank always forms a pair
+    if cards.len() == 2 && rank_counts.len() == 1 {
+        conditions.contains_pair = true;
+    }
+
     // Two Pair requires two different ranks with pairs
     conditions.contains_two_pair = different_pairs.len() >= 2;
 
-    // Check for straight (5-card or 4-card with Four Fingers)
+    // Check for straight
     conditions.contains_straight = is_straight(cards)
         || (four_fingers_active && has_four_card_straight(cards))
         || (shortcut_active && has_shortcut_straight(cards))
         || (four_fingers_active && shortcut_active && has_four_card_shortcut_straight(cards));
 
-    // Check for flush (5-card or 4-card with Four Fingers)
+    // Check for flush
     conditions.contains_flush = is_flush(cards, smeared_joker_active)
         || (four_fingers_active && has_four_card_flush(cards, smeared_joker_active));
 
