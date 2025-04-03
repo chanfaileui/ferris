@@ -197,62 +197,54 @@ fn has_four_card_straight(cards: &[Card]) -> bool {
 /// Checks if the cards form a straight with the Shortcut joker active
 /// Shortcut allows straights to be made with gaps of 1 rank
 fn has_shortcut_straight(cards: &[Card]) -> bool {
-    if cards.len() < 5 {
-        return false;
-    }
-
-    // Extract ranks, sort them, and remove duplicates
+    // Extract ranks, sort them, and remove duplicates to handle the case properly
     let mut ranks: Vec<Rank> = cards.iter().map(|card| card.rank).collect();
     ranks.sort();
-    ranks.dedup();
+    ranks.dedup(); // Remove duplicates to get unique ranks
 
     // Need at least 5 unique ranks
     if ranks.len() < 5 {
         return false;
     }
 
-    // Check for straights with gaps
-    for window in ranks.windows(5) {
-        // Count gaps
-        let mut gap_count = 0;
+    // Use rank values rather than Rank enum for easier gap calculation
+    let rank_values: Vec<i32> = ranks.iter().map(|r| r.rank_value() as i32).collect();
 
-        for i in 0..4 {
-            if let Some(expected_next) = window[i].next() {
-                if expected_next != window[i + 1] {
-                    // There's a gap
-                    gap_count += 1;
-                }
-            }
-        }
+    // Check standard straights with at most one gap
+    for window in rank_values.windows(5) {
+        let total_gap = window[4] - window[0] - 4; // Expected difference is 4 for 5 consecutive cards
 
-        // Shortcut allows at most one gap
-        if gap_count <= 1 {
+        if total_gap <= 1 {
+            // This means at most one gap of 1 rank
             return true;
         }
     }
 
-    // Special case for Ace-low straight with a gap
+    // Special handling for Ace-low straights (Ace counting as 1 instead of 14)
     if ranks.contains(&Rank::Ace) {
-        // Check for potential Ace-low straights with a gap
-        let low_ranks: Vec<Rank> = ranks
-            .iter()
-            .filter(|&&r| r <= Rank::Five)
-            .copied()
-            .collect();
+        // Create a new array with Ace = 1 (low) instead of 14 (high)
+        let mut low_ace_values: Vec<i32> = Vec::new();
 
-        if low_ranks.len() >= 4 {
-            // For simplicity, manually check A-2-3-5 and A-2-4-5
-            let has_two = low_ranks.contains(&Rank::Two);
-            let has_three = low_ranks.contains(&Rank::Three);
-            let has_four = low_ranks.contains(&Rank::Four);
-            let has_five = low_ranks.contains(&Rank::Five);
+        // Add 1 (low Ace) to the values list
+        low_ace_values.push(1);
 
-            if has_two && has_three && has_five && !has_four {
-                return true; // A-2-3-5 (one gap)
+        // Add all non-Ace ranks
+        for rank in &ranks {
+            if *rank != Rank::Ace {
+                low_ace_values.push(rank.rank_value() as i32);
             }
+        }
 
-            if has_two && has_four && has_five && !has_three {
-                return true; // A-2-4-5 (one gap)
+        // Sort the new values
+        low_ace_values.sort();
+
+        // Check for straights with the Ace as low
+        for window in low_ace_values.windows(5) {
+            let total_gap = window[4] - window[0] - 4;
+
+            if total_gap <= 1 {
+                // Valid straight with at most one gap
+                return true;
             }
         }
     }
@@ -281,11 +273,13 @@ fn has_four_card_shortcut_straight(cards: &[Card]) -> bool {
         // Count gaps
         let mut gap_count = 0;
         for i in 0..3 {
-            if let Some(expected_next) = window[i].next() {
-                let actual_next = window[i + 1];
-                if expected_next != actual_next {
-                    // There's a gap
-                    gap_count += 1;
+            let gap = window[i + 1].rank_value() as i32 - window[i].rank_value() as i32 - 1;
+            match gap {
+                0 => (), // No gap
+                1 => gap_count += 1,
+                _ => {
+                    gap_count = 2; // Too big gap, invalid
+                    break;
                 }
             }
         }
@@ -322,6 +316,7 @@ pub fn identify_hand(
     smeared_joker_active: bool,
 ) -> GameResult<PokerHand> {
     // println!("four fingers active: {:?}", four_fingers_active);
+    // println!("shortcut active: {:?}", shortcut_active);
     // println!("group by rank: {:?}", group_rank(cards));
     // println!("group by rank: {:?}", group_by_rank(cards));
     // println!("group by suit: {:?}", group_suit(cards));
@@ -345,9 +340,8 @@ pub fn identify_hand(
 
     // Four Fingers joker support - check for 4-card patterns if active
     let has_four_card_flush = if four_fingers_active && cards.len() >= 4 {
-        let result = has_four_card_flush(cards, smeared_joker_active);
         // println!("has_four_card_flush: {:?}", result);
-        result
+        has_four_card_flush(cards, smeared_joker_active)
     } else {
         false
     };
@@ -426,98 +420,82 @@ pub fn identify_hand(
 
 /// Helper function to find the cards that form a shortcut straight
 fn find_shortcut_straight_cards(cards: &[Card]) -> Vec<Card> {
-    // Extract ranks with their original indices
-    let mut rank_indices: Vec<(usize, u8)> = cards
+    // Extract ranks with their original card indices
+    let mut rank_info: Vec<(usize, Rank, i32)> = cards
         .iter()
         .enumerate()
-        .map(|(i, card)| (i, card.rank.rank_value() as u8))
+        .map(|(i, card)| (i, card.rank, card.rank.rank_value() as i32))
         .collect();
 
     // Sort by rank value
-    rank_indices.sort_by_key(|&(_, rank)| rank);
+    rank_info.sort_by_key(|&(_, _, val)| val);
 
     // Get unique ranks (maintain original indices)
-    let mut unique_ranks = Vec::new();
-    let mut last_rank = 0;
-    for &(idx, rank) in &rank_indices {
-        if rank != last_rank {
-            unique_ranks.push((idx, rank));
-            last_rank = rank;
+    let mut unique_rank_info = Vec::new();
+    let mut last_rank = None;
+
+    for &(idx, rank, value) in &rank_info {
+        if last_rank != Some(rank) {
+            unique_rank_info.push((idx, rank, value));
+            last_rank = Some(rank);
         }
     }
 
-    // Special case: check for Ace-low shortcut straight
-    if unique_ranks.iter().any(|&(_, r)| r == 14) {
-        // Ace present
-        let mut low_ranks = Vec::new();
-        let mut ace_idx = 0;
+    // Check standard straights with gaps
+    if unique_rank_info.len() >= 5 {
+        for window_start in 0..=unique_rank_info.len() - 5 {
+            let window = &unique_rank_info[window_start..window_start + 5];
+            let total_gap = window[4].2 - window[0].2 - 4; // Expected difference is 4
 
-        for &(idx, rank) in &unique_ranks {
-            if rank == 14 {
-                ace_idx = idx;
-            } else if rank <= 7 {
-                // Consider ranks 2-7 for Ace-low with a gap
-                low_ranks.push((idx, rank));
-            }
-        }
-
-        // Check for Ace-low shortcut straight (A-2-4-5-7 or similar)
-        if low_ranks.len() >= 4 {
-            // Sort low ranks
-            low_ranks.sort_by_key(|&(_, r)| r);
-
-            // Check if we can form a valid shortcut sequence
-            for start in 0..=low_ranks.len() - 4 {
-                let window = &low_ranks[start..start + 4];
-                let total_span = window[3].1 - window[0].1;
-
-                // For a shortcut straight with 4 cards, the span should be at most 5
-                if total_span <= 5 {
-                    // We found a valid sequence including Ace as low
-                    let mut result = Vec::new();
-                    result.push(cards[ace_idx]); // Add Ace
-
-                    // Add the four cards from the window
-                    for &(i, _) in window {
-                        result.push(cards[i]);
-                    }
-
-                    // Return the first 5 cards (or fewer if we don't have enough)
-                    return result.into_iter().take(5).collect();
-                }
-            }
-        }
-    }
-
-    // Check for regular shortcut straight
-    // Try each possible starting position for a 5-card sequence
-    for start in 0..=unique_ranks.len() - 5 {
-        let window = &unique_ranks[start..start + 5];
-        let total_span = window[4].1 - window[0].1;
-
-        // For a shortcut straight with 5 cards, the span should be at most 6
-        if total_span <= 6 {
-            // Check if there's at most one gap
-            let mut gap_count = 0;
-            for i in 0..4 {
-                let gap = window[i + 1].1 - window[i].1 - 1;
-                if gap > 1 {
-                    gap_count = 2; // Too big gap, invalid
-                    break;
-                } else if gap == 1 {
-                    gap_count += 1;
-                }
-            }
-
-            if gap_count <= 1 {
+            if total_gap <= 1 {
                 // We found a valid shortcut straight
-                return window.iter().map(|&(i, _)| cards[i]).collect();
+                return window.iter().map(|&(i, _, _)| cards[i]).collect();
             }
         }
     }
 
-    // Fallback: return the full hand if we couldn't find a specific straight
-    cards.to_vec()
+    // Check for Ace-low straights with gaps
+    if unique_rank_info
+        .iter()
+        .any(|&(_, rank, _)| rank == Rank::Ace)
+    {
+        // Find the Ace's index
+        let ace_idx = unique_rank_info
+            .iter()
+            .position(|&(_, rank, _)| rank == Rank::Ace)
+            .unwrap();
+        let (orig_ace_idx, _, _) = unique_rank_info[ace_idx];
+
+        // Create a new array with Ace = 1 (low) instead of 14 (high)
+        let mut low_ace_info = vec![(orig_ace_idx, Rank::Ace, 1)];
+
+        // Add all non-Ace ranks
+        for &(idx, rank, value) in &unique_rank_info {
+            if rank != Rank::Ace {
+                low_ace_info.push((idx, rank, value));
+            }
+        }
+
+        // Sort by rank value
+        low_ace_info.sort_by_key(|&(_, _, val)| val);
+
+        // Check for straights with the Ace as low
+        if low_ace_info.len() >= 5 {
+            for window_start in 0..=low_ace_info.len() - 5 {
+                let window = &low_ace_info[window_start..window_start + 5];
+                let total_gap = window[4].2 - window[0].2 - 4;
+
+                if total_gap <= 1 {
+                    // Valid straight with at most one gap
+                    return window.iter().map(|&(i, _, _)| cards[i]).collect();
+                }
+            }
+        }
+    }
+
+    // Fallback: if we couldn't identify a specific shortcut straight, return all cards
+    // (This might not be correct for all cases, but prevents returning an empty result)
+    cards.iter().take(5).cloned().collect()
 }
 
 /// Helper function to find the cards that form a 4-card shortcut straight
@@ -596,11 +574,13 @@ fn find_four_card_shortcut_straight(cards: &[Card]) -> Vec<Card> {
             let mut gap_count = 0;
             for i in 0..3 {
                 let gap = window[i + 1].1 - window[i].1 - 1;
-                if gap > 1 {
-                    gap_count = 2; // Too big gap, invalid
-                    break;
-                } else if gap == 1 {
-                    gap_count += 1;
+                match gap {
+                    0 => (), // No gap
+                    1 => gap_count += 1,
+                    _ => {
+                        gap_count = 2; // Too big gap, invalid
+                        break;
+                    }
                 }
             }
 
@@ -705,24 +685,24 @@ fn find_shortcut_straight_flush_cards(cards: &[Card], smeared_joker_active: bool
     Vec::new()
 }
 
-/// Find cards forming a four-card shortcut straight flush
-fn find_four_card_shortcut_straight_flush(cards: &[Card], smeared_joker_active: bool) -> Vec<Card> {
-    // Group by suit
-    let suit_groups = group_by_suit(cards, smeared_joker_active);
+// /// Find cards forming a four-card shortcut straight flush
+// fn find_four_card_shortcut_straight_flush(cards: &[Card], smeared_joker_active: bool) -> Vec<Card> {
+//     // Group by suit
+//     let suit_groups = group_by_suit(cards, smeared_joker_active);
 
-    // Check each suit group for a 4-card shortcut straight
-    for (_, suit_cards) in suit_groups {
-        if suit_cards.len() >= 4 {
-            let suit_cards_vec: Vec<Card> = suit_cards.iter().map(|&&c| c).collect();
-            if has_four_card_shortcut_straight(&suit_cards_vec) {
-                return find_four_card_shortcut_straight(&suit_cards_vec);
-            }
-        }
-    }
+//     // Check each suit group for a 4-card shortcut straight
+//     for (_, suit_cards) in suit_groups {
+//         if suit_cards.len() >= 4 {
+//             let suit_cards_vec: Vec<Card> = suit_cards.iter().map(|&&c| c).collect();
+//             if has_four_card_shortcut_straight(&suit_cards_vec) {
+//                 return find_four_card_shortcut_straight(&suit_cards_vec);
+//             }
+//         }
+//     }
 
-    // Fallback
-    Vec::new()
-}
+//     // Fallback
+//     Vec::new()
+// }
 
 /// Returns the cards that contribute to the scoring for a given poker hand
 ///
