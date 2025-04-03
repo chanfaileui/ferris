@@ -6,7 +6,7 @@ use crate::poker::{analyze_hand_conditions, get_scoring_cards, identify_hand};
 use crate::explain_dbg_bool;
 
 // Import from external crates
-use ortalib::{Card, Chips, Enhancement, Joker, JokerCard, Mult, PokerHand, Round};
+use ortalib::{Card, Chips, Enhancement, Joker, JokerCard, Mult, PokerHand, Rank, Round, Suit};
 
 #[derive(Debug)]
 pub struct GameState {
@@ -95,6 +95,8 @@ impl GameState {
         if retrigger_count > 0 && (self.pareidolia_active || card.rank.is_face()) {
             // Clear the retrigger counter to prevent infinite loops
             self.sock_and_buskin_retriggers = 0;
+            // With retriggers, can reapply Photograph on the same card
+            self.first_face_card_processed = false;
 
             // Apply retriggers
             for _ in 0..retrigger_count {
@@ -270,8 +272,6 @@ impl GameState {
         }
 
         // Step 1: Process jokers first to set any flags
-        //?
-
         // Check if any jokers are active
         self.four_fingers_active = self
             .round
@@ -303,7 +303,16 @@ impl GameState {
         self.mime_retriggers = 0;
         self.sock_and_buskin_retriggers = 0;
 
-        // Step 1: Identify the poker hand
+        // Process Blueprint jokers
+        for joker_card in &self.round.jokers.clone() {
+            if joker_card.joker == Joker::Blueprint {
+                let effect = jokers::create_joker_effect(joker_card.joker);
+                let placeholder_card = Card::new(Rank::Ace, Suit::Diamonds, None, None);
+                effect.apply(self, joker_card, &placeholder_card)?;
+            }
+        }
+
+        // Step 2: Identify the poker hand
         let poker_hand: PokerHand = identify_hand(
             &self.round.cards_played,
             self.four_fingers_active,
@@ -322,8 +331,6 @@ impl GameState {
             base_mult
         );
 
-        // // Step 2: Get scoring cards
-        // let scoring_cards: Vec<Card> = get_scoring_cards(&poker_hand, &self.round.cards_played);
         // Step 3: Analyze hand conditions for joker effects
         let conditions = analyze_hand_conditions(
             &self.round.cards_played,
@@ -352,7 +359,7 @@ impl GameState {
             )
         };
 
-        // Step 4: Process each card separately
+        // Step 5: Process each card separately
         for card in self.scoring_cards.clone() {
             let rank_chips: f64 = card.rank.rank_value();
             self.chips += rank_chips;
@@ -380,7 +387,7 @@ impl GameState {
             self.process_on_scored_jokers(&card)?;
         }
 
-        // Step 5: Process cards held in hand
+        // Step 6: Process cards held in hand
         for card in self.round.cards_held_in_hand.clone() {
             if let Some(Enhancement::Steel) = &card.enhancement {
                 apply_steel_enhancement(
@@ -394,7 +401,7 @@ impl GameState {
             self.process_on_held_jokers(&card)?;
         }
 
-        // Step 6: Process jokers (independent activation)
+        // Step 7: Process jokers (independent activation)
         jokers::process_jokers(self)?;
 
         Ok((self.chips, self.mult))
