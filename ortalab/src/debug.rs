@@ -2,7 +2,7 @@
 //!
 //! This module provides macros for conditional debug output in the game.
 
-/// Conditionally prints debug information based on a boolean flag.
+/// Prints debug information based on a boolean flag.
 #[macro_export]
 macro_rules! explain_dbg_bool {
     ($enabled:expr, $($arg:tt)*) => {
@@ -12,7 +12,7 @@ macro_rules! explain_dbg_bool {
     };
 }
 
-/// Conditionally prints debug information based on a game state's explain flag.
+/// Prints debug information based on a game state's explain flag.
 #[macro_export]
 macro_rules! explain_dbg {
     ($state:expr, $($arg:tt)*) => {

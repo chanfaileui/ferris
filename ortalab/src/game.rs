@@ -167,10 +167,10 @@ impl GameState {
             let effect = jokers::create_joker_effect(joker_card.joker);
             if effect.activation_type() == jokers::ActivationType::OnHeld && effect.can_apply(self)
             {
-                // For Raised Fist joker, only apply it if the current card is the lowest in hand
-                // AND it's the right-most (last) instance of the lowest rank
+                // Special handling for Raised Fist:
+                // Only apply it if the current card is the lowest in hand
+                // and it's the right-most instance of the lowest rank
                 if joker_card.joker == Joker::RaisedFist {
-                    // Find the cards with the lowest rank in hand
                     let lowest_rank = self
                         .round
                         .cards_held_in_hand
@@ -179,7 +179,6 @@ impl GameState {
                         .map(|c| c.rank);
 
                     if let Some(lowest) = lowest_rank {
-                        // Find all cards with this lowest rank
                         let lowest_cards: Vec<&Card> = self
                             .round
                             .cards_held_in_hand
@@ -187,10 +186,8 @@ impl GameState {
                             .filter(|c| c.rank == lowest)
                             .collect();
 
-                        // Get the last (right-most) card with this rank
                         let right_most = lowest_cards.last();
 
-                        // Only apply if the current card is the right-most lowest one
                         if let Some(right_most_card) = right_most {
                             if right_most_card.rank == card.rank
                                 && right_most_card.suit == card.suit
@@ -201,7 +198,6 @@ impl GameState {
                         }
                     }
                 } else {
-                    // For all other OnHeld jokers, apply as normal
                     effect.apply(self, joker_card, card)?;
                 }
             }
@@ -257,7 +253,7 @@ impl GameState {
                         if effect.activation_type() == jokers::ActivationType::OnHeld
                             && effect.can_apply(self)
                         {
-                            // Special handling for Raised Fist again
+                            // Special handling for Raised Fist
                             if joker_card.joker == Joker::RaisedFist {
                                 let lowest_rank = self
                                     .round
@@ -284,17 +280,12 @@ impl GameState {
     }
 
     pub fn score(&mut self) -> GameResult<(Chips, Mult)> {
-        // dbg!("cards_played {:?}", &self.round.cards_played);
-        // dbg!("cards held in hand {:?}", &self.round.cards_held_in_hand);
-        // dbg!("jokers! {:?}", &self.round.jokers);
-
         // Basic check
         if self.round.cards_played.is_empty() {
             return Ok((0.0, 0.0));
         }
 
         // Step 1: Process jokers first to set any flags
-        // Check if any jokers are active
         self.four_fingers_active = self
             .round
             .jokers
@@ -320,7 +311,6 @@ impl GameState {
             .jokers
             .iter()
             .any(|joker_card| joker_card.joker == Joker::SmearedJoker);
-
         self.first_face_card_processed = false;
         self.mime_retriggers = 0;
         self.sock_and_buskin_retriggers = 0;
@@ -371,7 +361,6 @@ impl GameState {
             // With Splash joker, all played cards score
             self.round.cards_played.to_vec()
         } else {
-            // Otherwise, only cards that form the poker hand
             get_scoring_cards(
                 &poker_hand,
                 &self.round.cards_played,

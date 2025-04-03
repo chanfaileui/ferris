@@ -35,8 +35,7 @@ pub fn apply_enhancement(
             explain_dbg_bool!(explain_enabled, "{} x2 Mult ({} x {})", card, *chips, *mult);
         }
         Some(Enhancement::Steel) => {
-            // ✖️ Mult×1.5 if this card is held in hand
-            // This is handled elsewhere for cards held in hand
+            // Steel enhancement is handled in apply_steel_enhancement function
         }
         Some(Enhancement::Wild) => {
             // Wild card effects are handled during hand identification

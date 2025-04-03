@@ -56,7 +56,7 @@ fn group_by_suit(cards: &[Card], smeared_joker_active: bool) -> IndexMap<Suit, V
                 suit_cards.entry(suit).or_default().push(card);
             }
         } else if smeared_joker_active {
-            // With Smeared Joker, add the card to its own suit AND the suit of the same color
+            // With Smeared Joker, add the card to its own suit and the suit of the same color
             suit_cards.entry(card.suit).or_default().push(card);
             let same_color_suit = card.suit.other_suit_of_same_color();
             suit_cards.entry(same_color_suit).or_default().push(card);
@@ -74,7 +74,6 @@ fn is_flush(cards: &[Card], smeared_joker_active: bool) -> bool {
         return false;
     }
 
-    // Group by suit, considering Wild cards as every suit
     let suit_groups = group_by_suit(cards, smeared_joker_active);
 
     // Check if any suit has enough cards for a flush
@@ -87,7 +86,6 @@ fn is_straight(cards: &[Card]) -> bool {
         return false; // Not enough cards for a straight
     }
 
-    // get ranks and sort them
     let mut ranks: Vec<Rank> = cards.iter().map(|card| card.rank).collect();
     ranks.sort();
 
@@ -107,7 +105,6 @@ fn is_straight(cards: &[Card]) -> bool {
                 return false;
             }
         } else {
-            // Current rank doesn't have a next rank
             return false;
         }
     }
@@ -118,12 +115,10 @@ fn is_straight(cards: &[Card]) -> bool {
 /// Checks if the played cards form a 3+2 pattern (three cards of one rank, two of another)
 /// This is used to identify Full House and Flush House
 fn has_three_two_pattern(cards: &[Card]) -> bool {
-    // We need at least 5 cards for a 3+2 pattern
     if cards.len() < 5 {
         return false;
     }
 
-    // Group cards by rank
     let rank_counts = group_rank(cards);
 
     // Need exactly 2 different ranks
@@ -141,10 +136,8 @@ fn has_four_card_flush(cards: &[Card], smeared_joker_active: bool) -> bool {
     if cards.len() < 4 {
         return false;
     }
-
-    // Group by suit
     let suit_groups = group_by_suit(cards, smeared_joker_active);
-    // println!("4card flush suit_groups: {:?}", suit_groups);
+
     // Check if any suit appears at least 4 times
     suit_groups.values().any(|cards| cards.len() >= 4)
 }
@@ -155,10 +148,10 @@ fn has_four_card_straight(cards: &[Card]) -> bool {
         return false;
     }
 
-    // get ranks and sort them
     let mut ranks: Vec<Rank> = cards.iter().map(|card| card.rank).collect();
     ranks.sort();
     ranks.dedup();
+
     // If we don't have at least 4 unique ranks, no straight is possible
     if ranks.len() < 4 {
         return false;
@@ -184,7 +177,7 @@ fn has_four_card_straight(cards: &[Card]) -> bool {
                     break;
                 }
             } else {
-                // If there's no next rank, they can't be consecutive
+                // Current rank doesn't have a next rank
                 is_consecutive = false;
                 break;
             }
@@ -204,7 +197,7 @@ fn has_shortcut_straight(cards: &[Card]) -> bool {
     // Extract ranks, sort them, and remove duplicates to handle the case properly
     let mut ranks: Vec<Rank> = cards.iter().map(|card| card.rank).collect();
     ranks.sort();
-    ranks.dedup(); // Remove duplicates to get unique ranks
+    ranks.dedup();
 
     // Need at least 5 unique ranks
     if ranks.len() < 5 {
@@ -231,7 +224,6 @@ fn has_shortcut_straight(cards: &[Card]) -> bool {
                     continue 'window_loop;
                 }
             }
-            // If we reach here, all gaps are 0 or 1, which is valid
             return true;
         }
     }
@@ -254,11 +246,9 @@ fn has_shortcut_straight(cards: &[Card]) -> bool {
         'ace_window_loop: for window_start in 0..=low_ace_values.len() - 5 {
             let window = &low_ace_values[window_start..window_start + 5];
 
-            // Same span logic as above
             let total_span = window[4] - window[0];
 
             if total_span <= 8 {
-                // Check individual gaps
                 for i in 0..4 {
                     let gap = window[i + 1] - window[i] - 1;
                     if gap > 1 {
@@ -279,7 +269,6 @@ fn has_four_card_shortcut_straight(cards: &[Card]) -> bool {
         return false;
     }
 
-    // Extract ranks, sort them, and remove duplicates
     let mut ranks: Vec<Rank> = cards.iter().map(|card| card.rank).collect();
     ranks.sort();
     ranks.dedup();
@@ -309,7 +298,6 @@ fn has_four_card_shortcut_straight(cards: &[Card]) -> bool {
                     continue 'window_loop;
                 }
             }
-            // All gaps are 0 or 1, valid shortcut straight
             return true;
         }
     }
@@ -367,21 +355,16 @@ pub fn identify_hand(
         return Ok(PokerHand::HighCard);
     }
 
-    // Get rank counts
     let rank_count = group_rank(cards);
-
-    // For Five of a Kind, we need at least 5 cards of the same rank
     let all_same_rank = rank_count.len() == 1 && cards.len() >= 5;
-
     let has_flush = is_flush(cards, smeared_joker_active);
     let has_straight = is_straight(cards) || (shortcut_active && has_shortcut_straight(cards));
     let has_three_two = has_three_two_pattern(cards);
     let has_four_of_a_kind = rank_count.values().any(|&count| count >= 4);
     let has_three_of_a_kind = rank_count.values().any(|&count| count >= 3);
 
-    // Count actual pairs (exactly 2 cards of the same rank)
+    // Count actual pairs
     let pair_count = rank_count.values().filter(|&&count| count == 2).count();
-
     // Special case for exactly 2 cards of the same rank
     let is_simple_pair = cards.len() == 2 && rank_count.len() == 1;
 
@@ -401,8 +384,6 @@ pub fn identify_hand(
     // Effective conditions
     let effective_flush = has_flush || has_four_card_flush;
     let effective_straight = has_straight || has_four_card_straight;
-
-    // Hand identification in order of precedence
 
     // 12. Flush Five (all same rank and suit)
     if all_same_rank && effective_flush {
@@ -472,7 +453,6 @@ fn find_shortcut_straight_cards(cards: &[Card]) -> Vec<Card> {
         .map(|(i, card)| (i, card.rank, card.rank.rank_value() as i32))
         .collect();
 
-    // Sort by rank value
     rank_info.sort_by_key(|&(_, _, val)| val);
 
     // Get unique ranks (maintain original indices)
@@ -493,7 +473,7 @@ fn find_shortcut_straight_cards(cards: &[Card]) -> Vec<Card> {
             let total_gap = window[4].2 - window[0].2 - 4; // Expected difference is 4
 
             if total_gap <= 1 {
-                // We found a valid shortcut straight
+                // Valid shortcut straight
                 return window.iter().map(|&(i, _, _)| cards[i]).collect();
             }
         }
@@ -538,21 +518,18 @@ fn find_shortcut_straight_cards(cards: &[Card]) -> Vec<Card> {
         }
     }
 
-    // Fallback: if we couldn't identify a specific shortcut straight, return all cards
-    // (This might not be correct for all cases, but prevents returning an empty result)
+    // Fallback
     cards.iter().take(5).cloned().collect()
 }
 
 /// Helper function to find the cards that form a 4-card shortcut straight
 fn find_four_card_shortcut_straight(cards: &[Card]) -> Vec<Card> {
-    // Similar to find_shortcut_straight_cards but for 4-card sequences
     let mut rank_indices: Vec<(usize, u8)> = cards
         .iter()
         .enumerate()
         .map(|(i, card)| (i, card.rank.rank_value() as u8))
         .collect();
 
-    // Sort by rank value
     rank_indices.sort_by_key(|&(_, rank)| rank);
 
     // Get unique ranks (maintain original indices)
@@ -630,13 +607,13 @@ fn find_four_card_shortcut_straight(cards: &[Card]) -> Vec<Card> {
             }
 
             if gap_count <= 1 {
-                // We found a valid 4-card shortcut straight
+                // Valid 4-card shortcut straight
                 return window.iter().map(|&(i, _)| cards[i]).collect();
             }
         }
     }
 
-    // Fallback: return the first 4 cards if we couldn't find a specific straight
+    // Fallback
     cards.iter().take(4).copied().collect()
 }
 
@@ -648,13 +625,11 @@ fn find_four_card_straight(cards: &[Card]) -> Vec<Card> {
         .map(|(i, card)| (i, card.rank.rank_value() as u8))
         .collect();
 
-    // Sort by rank value
     rank_indices.sort_by_key(|&(_, rank)| rank);
 
     // Check for consecutive sequences of 4 cards
     for window in rank_indices.windows(4) {
         if window[3].1 - window[0].1 == 3 {
-            // Found 4 consecutive cards
             return window.iter().map(|&(i, _)| cards[i]).collect();
         }
     }
@@ -830,15 +805,12 @@ pub fn get_scoring_cards(
                     // Fallback
                     cards.to_vec()
                 }
+            } else if four_fingers_active && !is_straight(cards) && has_four_card_straight(cards) {
+                // Find the 4 cards that form a straight
+                find_four_card_straight(cards)
             } else {
-                // Use the original logic for regular straights
-                if four_fingers_active && !is_straight(cards) && has_four_card_straight(cards) {
-                    // Find the 4 cards that form a straight
-                    find_four_card_straight(cards)
-                } else {
-                    // Regular 5-card straight
-                    cards.to_vec()
-                }
+                // Regular 5-card straight
+                cards.to_vec()
             }
         }
         PokerHand::Flush => {
@@ -862,10 +834,8 @@ pub fn get_scoring_cards(
             }
         }
         PokerHand::StraightFlush => {
-            // For a straight flush with Four Fingers active, we need to carefully combine
-            // the cards from both the flush and straight components
             if four_fingers_active {
-                // First, identify the flush component (5-card or 4-card)
+                // 1. Identify the flush component (5-card or 4-card)
                 let flush_cards = if is_flush(cards, smeared_joker_active) {
                     // Regular 5-card flush - all cards of the same suit
                     cards
@@ -895,7 +865,7 @@ pub fn get_scoring_cards(
                     Vec::new() // No flush component
                 };
 
-                // Next, identify the straight component
+                // 2. Identify the straight component
                 let straight_cards = if is_straight(cards) {
                     // Regular 5-card straight
                     cards.to_vec()
@@ -912,7 +882,7 @@ pub fn get_scoring_cards(
                     Vec::new() // No straight component
                 };
 
-                // Combine the two components to get all relevant cards
+                // 3. Union flush and straight components to get all relevant cards
                 let mut combined_cards = flush_cards;
                 for card in straight_cards {
                     if !combined_cards.contains(&card) {
@@ -920,7 +890,7 @@ pub fn get_scoring_cards(
                     }
                 }
 
-                // If we have a combined result, return it
+                // 4. Return the combined cards
                 if !combined_cards.is_empty() {
                     return combined_cards;
                 }
@@ -936,7 +906,7 @@ pub fn get_scoring_cards(
                 return find_shortcut_straight_flush_cards(cards, smeared_joker_active);
             }
 
-            // Default case - return all cards
+            // Fallback
             cards.to_vec()
         } // For these hands, all cards are scored
         PokerHand::FiveOfAKind
@@ -967,41 +937,30 @@ pub fn analyse_hand_conditions(
 ) -> GameResult<HandConditions> {
     let mut conditions = HandConditions::default();
 
-    // Analyse ranks to find pairs and three-of-a-kinds
     let rank_counts = group_rank(cards);
-
-    // Check for pairs and three-of-a-kinds
     let mut different_pairs = std::collections::HashSet::new();
 
     for (&rank, &count) in &rank_counts {
-        // A pair is defined as 2 or more cards of the same rank (for joker activation)
-        // This is important for jokers like Jolly Joker that activate when hand "contains a pair"
         if count >= 2 {
             conditions.contains_pair = true;
             different_pairs.insert(rank);
         }
 
-        // Three of a kind is 3+ cards of the same rank
         if count >= 3 {
             conditions.contains_three_of_a_kind = true;
         }
     }
-
-    // Special case: two cards of the same rank always forms a pair
     if cards.len() == 2 && rank_counts.len() == 1 {
         conditions.contains_pair = true;
     }
 
-    // Two Pair requires two different ranks with pairs
     conditions.contains_two_pair = different_pairs.len() >= 2;
 
-    // Check for straight
     conditions.contains_straight = is_straight(cards)
         || (four_fingers_active && has_four_card_straight(cards))
         || (shortcut_active && has_shortcut_straight(cards))
         || (four_fingers_active && shortcut_active && has_four_card_shortcut_straight(cards));
 
-    // Check for flush
     conditions.contains_flush = is_flush(cards, smeared_joker_active)
         || (four_fingers_active && has_four_card_flush(cards, smeared_joker_active));
 

@@ -22,8 +22,5 @@ impl fmt::Display for GameError {
 
 impl std::error::Error for GameError {}
 
-/// A specialised Result type for game operations
-///
-/// This type alias is used throughout the codebase to represent
-/// results of operations that might fail with a `GameError`.
+/// A specialised Result type alias to represent game operations
 pub type GameResult<T> = Result<T, GameError>;
