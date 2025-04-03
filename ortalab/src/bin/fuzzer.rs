@@ -1,15 +1,12 @@
-use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::Path;
 use std::process::{Command, Output};
-use std::time::Instant;
 
 use ortalib::{Card, Edition, Enhancement, Joker, JokerCard, Rank, Suit};
 use rand::seq::SliceRandom;
-use rand::{Rng, thread_rng};
+use rand::{Rng, rng};
 use serde::Serialize;
-use yaml_rust::YamlEmitter;
 
 #[derive(Serialize)]
 struct Round {
@@ -20,7 +17,7 @@ struct Round {
 
 /// Generates a random card with optional enhancement and edition
 fn random_card(rng: &mut impl Rng, allow_enhancement: bool, allow_edition: bool) -> String {
-    let rank = match rng.gen_range(0..13) {
+    let rank = match rng.random_range(0..13) {
         0 => Rank::Two,
         1 => Rank::Three,
         2 => Rank::Four,
@@ -36,7 +33,7 @@ fn random_card(rng: &mut impl Rng, allow_enhancement: bool, allow_edition: bool)
         _ => Rank::Ace,
     };
 
-    let suit = match rng.gen_range(0..4) {
+    let suit = match rng.random_range(0..4) {
         0 => Suit::Spades,
         1 => Suit::Hearts,
         2 => Suit::Clubs,
@@ -46,8 +43,8 @@ fn random_card(rng: &mut impl Rng, allow_enhancement: bool, allow_edition: bool)
     let card = Card::new(rank, suit, None, None);
     let mut result = card.to_string();
 
-    if allow_enhancement && rng.gen_bool(0.3) {
-        let enhancement = match rng.gen_range(0..5) {
+    if allow_enhancement && rng.random_bool(0.3) {
+        let enhancement = match rng.random_range(0..5) {
             0 => Enhancement::Bonus,
             1 => Enhancement::Mult,
             2 => Enhancement::Wild,
@@ -57,8 +54,8 @@ fn random_card(rng: &mut impl Rng, allow_enhancement: bool, allow_edition: bool)
         result = format!("{} {}", result, enhancement);
     }
 
-    if allow_edition && rng.gen_bool(0.3) {
-        let edition = match rng.gen_range(0..3) {
+    if allow_edition && rng.random_bool(0.3) {
+        let edition = match rng.random_range(0..3) {
             0 => Edition::Foil,
             1 => Edition::Holographic,
             _ => Edition::Polychrome,
@@ -71,7 +68,7 @@ fn random_card(rng: &mut impl Rng, allow_enhancement: bool, allow_edition: bool)
 
 /// Generates a random joker card with optional edition
 fn random_joker(rng: &mut impl Rng, allow_edition: bool) -> String {
-    let joker = match rng.gen_range(0..34) {
+    let joker = match rng.random_range(0..34) {
         0 => Joker::Joker,
         1 => Joker::JollyJoker,
         2 => Joker::ZanyJoker,
@@ -111,8 +108,8 @@ fn random_joker(rng: &mut impl Rng, allow_edition: bool) -> String {
     let joker_card = JokerCard::new(joker, None);
     let mut result = joker_card.to_string();
 
-    if allow_edition && rng.gen_bool(0.3) {
-        let edition = match rng.gen_range(0..3) {
+    if allow_edition && rng.random_bool(0.3) {
+        let edition = match rng.random_range(0..3) {
             0 => Edition::Foil,
             1 => Edition::Holographic,
             _ => Edition::Polychrome,
@@ -133,9 +130,9 @@ fn generate_random_round(
     allow_enhancements: bool,
     allow_editions: bool,
 ) -> Round {
-    let num_cards_played = rng.gen_range(min_cards_played..=max_cards_played);
-    let num_cards_in_hand = rng.gen_range(0..=max_cards_in_hand);
-    let num_jokers = rng.gen_range(0..=max_jokers);
+    let num_cards_played = rng.random_range(min_cards_played..=max_cards_played);
+    let num_cards_in_hand = rng.random_range(0..=max_cards_in_hand);
+    let num_jokers = rng.random_range(0..=max_jokers);
 
     let mut cards_played = Vec::with_capacity(num_cards_played);
     for _ in 0..num_cards_played {
@@ -166,7 +163,7 @@ fn generate_targeted_round(rng: &mut impl Rng) -> Round {
     let mut jokers = Vec::new();
 
     // Define the target scenario (random choice among several interesting cases)
-    let scenario = rng.gen_range(0..10);
+    let scenario = rng.random_range(0..10);
 
     match scenario {
         0 => {
@@ -186,7 +183,7 @@ fn generate_targeted_round(rng: &mut impl Rng) -> Round {
 
             for i in 0..5 {
                 let mut card_str = Card::new(ranks[i], suits[i], None, None).to_string();
-                if i == 2 && rng.gen_bool(0.8) {
+                if i == 2 && rng.random_bool(0.8) {
                     card_str = format!("{} Wild", card_str);
                 }
                 cards_played.push(card_str);
@@ -288,12 +285,12 @@ fn generate_targeted_round(rng: &mut impl Rng) -> Round {
         }
         8 => {
             // Scenario: Five of a Kind with enhancements
-            let rank = if rng.gen_bool(0.5) {
+            let rank = if rng.random_bool(0.5) {
                 Rank::Ace
             } else {
                 Rank::King
             };
-            let mut suits = vec![
+            let mut suits = [
                 Suit::Hearts,
                 Suit::Diamonds,
                 Suit::Clubs,
@@ -304,9 +301,9 @@ fn generate_targeted_round(rng: &mut impl Rng) -> Round {
 
             for i in 0..5 {
                 let mut card_str = Card::new(rank, suits[i], None, None).to_string();
-                if rng.gen_bool(0.7) {
+                if rng.random_bool(0.7) {
                     // Add random enhancement
-                    let enhancement = match rng.gen_range(0..5) {
+                    let enhancement = match rng.random_range(0..5) {
                         0 => Enhancement::Bonus,
                         1 => Enhancement::Mult,
                         2 => Enhancement::Wild,
@@ -321,12 +318,13 @@ fn generate_targeted_round(rng: &mut impl Rng) -> Round {
         9 => {
             // Scenario: Wild cards making multiple possible hands
             // Create a hand with several Wild cards that could be interpreted in different ways
-            let mut card_strs = Vec::new();
-            card_strs.push(Card::new(Rank::Ten, Suit::Hearts, None, None).to_string() + " Wild");
-            card_strs.push(Card::new(Rank::Jack, Suit::Spades, None, None).to_string() + " Wild");
-            card_strs.push(Card::new(Rank::Queen, Suit::Diamonds, None, None).to_string());
-            card_strs.push(Card::new(Rank::King, Suit::Clubs, None, None).to_string());
-            card_strs.push(Card::new(Rank::Ace, Suit::Hearts, None, None).to_string());
+            let card_strs = vec![
+                Card::new(Rank::Ten, Suit::Hearts, None, None).to_string() + " Wild",
+                Card::new(Rank::Jack, Suit::Spades, None, None).to_string() + " Wild",
+                Card::new(Rank::Queen, Suit::Diamonds, None, None).to_string(),
+                Card::new(Rank::King, Suit::Clubs, None, None).to_string(),
+                Card::new(Rank::Ace, Suit::Hearts, None, None).to_string(),
+            ];
 
             cards_played = card_strs;
         }
@@ -377,18 +375,41 @@ fn run_reference_solution(round_path: &Path) -> io::Result<String> {
 
 /// Run your solution on a given round file
 fn run_your_solution(round_path: &Path) -> io::Result<String> {
-    let output = run_command("./target/debug/ortalab", &[&round_path.to_string_lossy()])?;
-    if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
-    } else {
-        Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!(
-                "Your solution failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            ),
-        ))
+    // First try cargo run approach (more reliable)
+    let output = run_command("cargo", &["run", "--", &round_path.to_string_lossy()]);
+
+    if let Ok(output) = output {
+        if output.status.success() {
+            return Ok(String::from_utf8_lossy(&output.stdout).trim().to_string());
+        }
     }
+
+    // Fall back to direct binary execution
+    let binary_paths = [
+        "./target/debug/ortalab",
+        "target/debug/ortalab",
+        "./ortalab",
+    ];
+
+    for path in binary_paths {
+        let output = Command::new(path)
+            .arg(&*round_path.to_string_lossy())
+            .output();
+
+        match output {
+            Ok(output) => {
+                if output.status.success() {
+                    return Ok(String::from_utf8_lossy(&output.stdout).trim().to_string());
+                }
+            }
+            Err(_) => continue,
+        }
+    }
+
+    Err(io::Error::new(
+        io::ErrorKind::Other,
+        "Failed to run your solution with any of the attempted methods".to_string(),
+    ))
 }
 
 /// Create the test directory if it doesn't exist
@@ -418,7 +439,7 @@ fn main() -> io::Result<()> {
     }
 
     // Initialize RNG and test parameters
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let num_random_tests = 50;
     let num_targeted_tests = 50;
     let mut failed_tests = Vec::new();
