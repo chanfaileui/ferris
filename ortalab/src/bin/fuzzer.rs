@@ -199,7 +199,7 @@ fn run_test(test_number: usize, test_dir: &Path) -> io::Result<bool> {
     let round = generate_random_round(&mut rng);
 
     // Save to YAML
-    let yaml_str = serde_yaml::to_string(&round).unwrap();
+    let yaml_str = serde_yaml::to_string(&round).unwrap_or_default();
     fs::write(&round_path, yaml_str)?;
 
     // Run reference solution
@@ -215,7 +215,7 @@ fn run_test(test_number: usize, test_dir: &Path) -> io::Result<bool> {
         return Ok(false); // Reference solution failed
     };
 
-    // Run your solution
+    // Run solution
     let your_output = Command::new("cargo")
         .args(["run", "--", &round_path.to_string_lossy()])
         .output()?;
@@ -225,7 +225,7 @@ fn run_test(test_number: usize, test_dir: &Path) -> io::Result<bool> {
             .trim()
             .to_string()
     } else {
-        return Ok(false); // Your solution failed
+        return Ok(false); // Solution failed
     };
 
     Ok(ref_result == your_result)
@@ -240,8 +240,7 @@ fn main() -> io::Result<()> {
         fs::create_dir(test_dir)?;
     }
 
-    // Build your solution
-    println!("Building your solution...");
+    println!("Building solution...");
     let build_output = Command::new("cargo").arg("build").output()?;
     if !build_output.status.success() {
         return Err(io::Error::new(io::ErrorKind::Other, "Build failed"));

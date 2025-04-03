@@ -18,16 +18,27 @@ If you have completed a "design excellence" task, please write what
 the task was below (note, it MUST be on the list in the assignment or
 approved by COMP6991 staff).
 
-> Fuzzer!
-> please run `6991 cargo run --bin fuzzer` :)
+> Fuzzer, which generates 50 random cases and tests your solution against the reference solution
+> There's a maximum of 5 cards and 5 jokers. It also randomly adds effects and enhancements.
+> Please run `6991 cargo run --bin fuzzer` :)
 
 Please write a paragraph or two (max. 250 words) describing how your design was
 influenced by this challenge, with specific reference to sections of your code.
 If you completed the "Pull Request" design excellence, please just leave a link
 to your PR.
 
->
->
+> Overall, my implementation works as follows:
+GameState struct stores the state of the game, including current chips/mult and any joker effects that are active.
+Poker file handles all poker identification/scoring logic. There, the `identify_hand` function identifies the hand and sets
+any relevant flags in GameState, such as "contains_pair" etc.
+Used IndexMap instead of HashMap to maintain order of the scoring cards.
+All functions return GameResult<T> instead of just panicking. The enum also makes it simple to propogate errors.
+I've organised the code into Poker, Joker and Modifiers (enhancements and editions),
+so that each module handles one purpose and modules are not bloated with various responsibilities.
+To handle Jokers, I utilise the JokerEffect trait so Poker.rs has a simple interface to call the Jokers
+without worrying about its inner implementation, allowing for joker polymorphism. This also makes it extensible
+to implement more jokers.
+The use of an ActivationType enum (Independent, OnScored, OnHeld) makes it easy to identify when joker effects should trigger.
 >
 
 ## Design Limitations
@@ -36,24 +47,37 @@ If you made any design decisions which you now regret making; but don't to go ba
 let us know here. You can make up your design marks by acknowledging up to 5 things you would do
 differently now.
 
+1.
 > I previously used GameResult<Vec<String>> to store and handle `--explain` text which added unnecessary overhead to functions
-> it also forced the functions to return explanantions even when it wasn't necessary
-> so I shifted towards using print macros to handle explanations
+> it also forced the functions to return explanantions even when it wasn't necessary,
+> so I shifted towards using print macros in debug.rs to handle explanations.
+> There are two versions of the print macro to handle different cases.
 > I apologise if I wasn't able to change the majority of instances due to the time constraints of the assignment
+> or to merge both macros into one.
 
-> quite a bit of cloning + to_vec :( but only for small hands, it was mentioned in the forums that it's a relatively minor note
+2.
+> There is quite a bit of cloning + to_vec :( but only for small hands (as outlined in the spec).
+> It was mentioned in the forums that it's a relatively minor note:
 > https://discourse02.cse.unsw.edu.au/25T1/COMP6991/t/using-clone/5319/8
+> but instead of passing the GameState around, I could've made a new local GameState
+> and then mutate the global one once all scoring was done.
+> However due to time constraints, refactoring wasn't feasible.
 
-> Also, I pass a placeholder card for one of my traits and have all Independent jokers ignore the "current_card" parameter
-> It really isn't the most pragmatic design but to refactor would mean setting up a JokerTarget enum, or having two versions of apply
-> and excessive amounts of refactoring.
+3.
+> I pass a placeholder card for one of my traits and have all Independent jokers ignore the "current_card" parameter.
+> While this design works, it really isn't the most pragmatic design.
+> To refactor would mean setting up a JokerTarget enum (instead of passing in current card)
+> or splitting JokerEffect into multiple traits for different activation types
+> which would mean excessive amounts of refactoring.
 
 ## Questions to the marker
 
 If you want to let us know something else about your program, put it here!
 (Feel free to leave this blank)
 
-> I implemented --explain!
+> The fuzzer could have less duplicate code and better code style, but as forum stated,
+> it doesn't actively harm the design of the main ortalab, so it's ok:
+https://discourse02.cse.unsw.edu.au/25T1/COMP6991/t/my-fuzzer-is-absolute-dogshit-will-its-design-bleed-into-my-design-marks/5459
 
 ## Other Comments
 
