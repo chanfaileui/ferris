@@ -405,63 +405,6 @@ impl JokerEffect for FlowerPot {
         ActivationType::Independent
     }
 
-    // fn can_apply(&self, game_state: &GameState) -> bool {
-    //     // Need to have at least 4 scoring cards
-    //     if game_state.scoring_cards.len() < 4 {
-    //         return false;
-    //     }
-
-    //     // Count how many cards of each suit or wild we have
-    //     let mut hearts_count = 0;
-    //     let mut diamonds_count = 0;
-    //     let mut spades_count = 0;
-    //     let mut clubs_count = 0;
-    //     let mut wild_count = 0;
-
-    //     for card in &game_state.scoring_cards {
-    //         if card.enhancement == Some(Enhancement::Wild) {
-    //             wild_count += 1;
-    //         } else {
-    //             match card.suit {
-    //                 Suit::Hearts => hearts_count += 1,
-    //                 Suit::Diamonds => diamonds_count += 1,
-    //                 Suit::Spades => spades_count += 1,
-    //                 Suit::Clubs => clubs_count += 1,
-    //             }
-    //         }
-    //     }
-
-    //     // With Smeared Joker active, we need both red and black suits represented
-    //     if game_state.smeared_joker_active {
-    //         let has_red = hearts_count > 0 || diamonds_count > 0;
-    //         let has_black = spades_count > 0 || clubs_count > 0;
-
-    //         // If we already have both red and black naturally, we're good
-    //         if has_red && has_black {
-    //             return true;
-    //         }
-
-    //         // Otherwise, check if we have enough wild cards to fill the gaps
-    //         let missing_colors = (!has_red as usize) + (!has_black as usize);
-    //         wild_count >= missing_colors
-    //     } else {
-    //         // Without Smeared Joker, we need all four suits
-    //         let has_hearts = hearts_count > 0;
-    //         let has_diamonds = diamonds_count > 0;
-    //         let has_spades = spades_count > 0;
-    //         let has_clubs = clubs_count > 0;
-
-    //         // Count missing suits
-    //         let missing_suits = (!has_hearts as usize)
-    //             + (!has_diamonds as usize)
-    //             + (!has_spades as usize)
-    //             + (!has_clubs as usize);
-
-    //         // Check if we have enough wild cards to fill in missing suits
-    //         missing_suits <= wild_count
-    //     }
-    // }
-
     fn can_apply(&self, game_state: &GameState) -> bool {
         // Need at least 4 scoring cards
         if game_state.scoring_cards.len() < 4 {

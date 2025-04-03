@@ -1,0 +1,16 @@
+cards_played:
+- 7♣
+- 5♦
+- 7♦ Foil
+- 9♠ Bonus
+- 9♥ Glass
+cards_held_in_hand:
+- J♠
+- K♣ Glass
+- 5♠
+- 5♣
+- 7♠
+jokers:
+- Smeared Joker
+- Gluttonous Joker
+- Mad Joker

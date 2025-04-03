@@ -1,0 +1,12 @@
+cards_played:
+- 10♥
+- 10♠
+- 10♣
+- K♥
+- K♦
+cards_held_in_hand:
+- 2♥
+- 2♠
+- 3♣
+jokers:
+- Raised Fist
