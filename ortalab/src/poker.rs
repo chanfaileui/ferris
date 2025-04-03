@@ -686,25 +686,6 @@ fn find_four_card_flush(cards: &[Card], smeared_joker_active: bool) -> Vec<Card>
     Vec::new()
 }
 
-/// Find cards forming a four-card straight flush (regular, without gaps)
-fn find_four_card_straight_flush(cards: &[Card], smeared_joker_active: bool) -> Vec<Card> {
-    // First group by suit
-    let suit_groups = group_by_suit(cards, smeared_joker_active);
-
-    // Check each suit group for a 4-card straight
-    for (_, suit_cards) in suit_groups {
-        if suit_cards.len() >= 4 {
-            let suit_cards_vec: Vec<Card> = suit_cards.iter().map(|&&c| c).collect();
-            if has_four_card_straight(&suit_cards_vec) {
-                return find_four_card_straight(&suit_cards_vec);
-            }
-        }
-    }
-
-    // Fallback
-    Vec::new()
-}
-
 /// Find cards forming a shortcut straight flush (5 cards with at most one gap)
 fn find_shortcut_straight_flush_cards(cards: &[Card], smeared_joker_active: bool) -> Vec<Card> {
     // Group by suit
@@ -875,45 +856,83 @@ pub fn get_scoring_cards(
             }
         }
         PokerHand::StraightFlush => {
-            if shortcut_active {
-                // First, try to find a 5-card straight flush with gaps
-                if find_shortcut_straight_flush_cards(cards, smeared_joker_active).len() == 5 {
-                    return find_shortcut_straight_flush_cards(cards, smeared_joker_active);
-                }
-
-                // Next, check for 4-card straight flush with gaps (Four Fingers active)
-                if four_fingers_active
-                    && find_four_card_shortcut_straight_flush(cards, smeared_joker_active).len()
-                        == 4
-                {
-                    return find_four_card_shortcut_straight_flush(cards, smeared_joker_active);
-                }
-            } else {
-                // Regular straight flush logic
-                if four_fingers_active
-                    && find_four_card_straight_flush(cards, smeared_joker_active).len() == 4
-                {
-                    return find_four_card_straight_flush(cards, smeared_joker_active);
-                }
-            }
-
-            // For Four Fingers, if we have a separate 4-card flush and a straight,
-            // that qualifies as a straight flush, so return all cards
+            // For a straight flush with Four Fingers active, we need to carefully combine
+            // the cards from both the flush and straight components
             if four_fingers_active {
-                let has_four_flush = has_four_card_flush(cards, smeared_joker_active);
-                let has_straight = is_straight(cards)
-                    || (shortcut_active && has_shortcut_straight(cards))
-                    || has_four_card_straight(cards);
+                // First, identify the flush component (5-card or 4-card)
+                let flush_cards = if is_flush(cards, smeared_joker_active) {
+                    // Regular 5-card flush - all cards of the same suit
+                    cards
+                        .iter()
+                        .filter(|card| {
+                            let dominant_suit = cards
+                                .iter()
+                                .filter(|c| c.enhancement != Some(ortalib::Enhancement::Wild))
+                                .fold(std::collections::HashMap::new(), |mut map, c| {
+                                    *map.entry(c.suit).or_insert(0) += 1;
+                                    map
+                                })
+                                .into_iter()
+                                .max_by_key(|(_, count)| *count)
+                                .map(|(suit, _)| suit)
+                                .unwrap_or(card.suit);
 
-                if has_four_flush && has_straight {
-                    return cards.to_vec();
+                            card.enhancement == Some(ortalib::Enhancement::Wild)
+                                || card.suit == dominant_suit
+                        })
+                        .copied()
+                        .collect::<Vec<Card>>()
+                } else if has_four_card_flush(cards, smeared_joker_active) {
+                    // 4-card flush
+                    find_four_card_flush(cards, smeared_joker_active)
+                } else {
+                    Vec::new() // No flush component
+                };
+
+                // Next, identify the straight component
+                let straight_cards = if is_straight(cards) {
+                    // Regular 5-card straight
+                    cards.to_vec()
+                } else if shortcut_active && has_shortcut_straight(cards) {
+                    // 5-card straight with gaps
+                    find_shortcut_straight_cards(cards)
+                } else if has_four_card_straight(cards) {
+                    // 4-card straight
+                    find_four_card_straight(cards)
+                } else if shortcut_active && has_four_card_shortcut_straight(cards) {
+                    // 4-card straight with gaps
+                    find_four_card_shortcut_straight(cards)
+                } else {
+                    Vec::new() // No straight component
+                };
+
+                // Combine the two components to get all relevant cards
+                let mut combined_cards = flush_cards;
+                for card in straight_cards {
+                    if !combined_cards.contains(&card) {
+                        combined_cards.push(card);
+                    }
                 }
+
+                // If we have a combined result, return it
+                if !combined_cards.is_empty() {
+                    return combined_cards;
+                }
+
+                // Fallback to all cards
+                return cards.to_vec();
             }
 
-            // Default to all cards if no specific cards found
+            // Without Four Fingers active
+            if shortcut_active
+                && find_shortcut_straight_flush_cards(cards, smeared_joker_active).len() == 5
+            {
+                return find_shortcut_straight_flush_cards(cards, smeared_joker_active);
+            }
+
+            // Default case - return all cards
             cards.to_vec()
-        }
-        // For these hands, all cards are scored
+        } // For these hands, all cards are scored
         PokerHand::FiveOfAKind
         | PokerHand::FlushHouse
         | PokerHand::FlushFive
