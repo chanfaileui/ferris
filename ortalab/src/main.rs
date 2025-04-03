@@ -1,9 +1,9 @@
+mod debug;
 mod errors;
 mod game;
+mod jokers;
 mod modifiers;
 mod poker;
-mod jokers;
-mod debug;
 
 use std::{
     error::Error,

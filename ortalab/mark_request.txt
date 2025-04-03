@@ -6,11 +6,11 @@ Please mark stages that are complete with an [X].
 Stages that are partially complete should be marked with a [?].
 Stages that are not complete should be left blank (like [ ]).
 
-> [ ] Stage 1 (Basic Scoring)
-> [ ] Stage 2 (Modifiers)
-> [ ] Stage 3 (Easy Jokers)
-> [ ] Stage 4 (Medium Jokers)
-> [ ] Stage 5 (Hard Jokers)
+> [X] Stage 1 (Basic Scoring)
+> [X] Stage 2 (Modifiers)
+> [X] Stage 3 (Easy Jokers)
+> [X] Stage 4 (Medium Jokers)
+> [X] Stage 5 (Hard Jokers)
 
 ## Design Excellence
 
@@ -18,7 +18,8 @@ If you have completed a "design excellence" task, please write what
 the task was below (note, it MUST be on the list in the assignment or
 approved by COMP6991 staff).
 
->
+> Fuzzer!
+> please run `6991 cargo run --bin fuzzer` :)
 
 Please write a paragraph or two (max. 250 words) describing how your design was
 influenced by this challenge, with specific reference to sections of your code.
@@ -35,26 +36,24 @@ If you made any design decisions which you now regret making; but don't to go ba
 let us know here. You can make up your design marks by acknowledging up to 5 things you would do
 differently now.
 
-> - TODO
-> I previously used GameResult<Vec<String>> to handle `--explain` which added unnecessary overhead to functions
-> so I shifted towards using macros to handle explanations
+> I previously used GameResult<Vec<String>> to store and handle `--explain` text which added unnecessary overhead to functions
+> it also forced the functions to return explanantions even when it wasn't necessary
+> so I shifted towards using print macros to handle explanations
 > I apologise if I wasn't able to change the majority of instances due to the time constraints of the assignment
-> some cloning + to_vec :( but only for small hands, it was mentioned in the forums that it's a relatively minor note
-https://discourse02.cse.unsw.edu.au/25T1/COMP6991/t/using-clone/5319/8
 
-Also, I pass a placeholder and have Independent jokers simply ignore the card parameter
-It really isn't the most pragmatic design but to refactor would mean setting up a JokerTarget enum
-and excessive amounts of refactoring
+> quite a bit of cloning + to_vec :( but only for small hands, it was mentioned in the forums that it's a relatively minor note
+> https://discourse02.cse.unsw.edu.au/25T1/COMP6991/t/using-clone/5319/8
 
-placeholder card is honestly overkill for Independent jokers but I couldnt fix without significant refactoring
-
+> Also, I pass a placeholder card for one of my traits and have all Independent jokers ignore the "current_card" parameter
+> It really isn't the most pragmatic design but to refactor would mean setting up a JokerTarget enum, or having two versions of apply
+> and excessive amounts of refactoring.
 
 ## Questions to the marker
 
 If you want to let us know something else about your program, put it here!
 (Feel free to leave this blank)
 
-> TODO
+> I implemented --explain!
 
 ## Other Comments
 
