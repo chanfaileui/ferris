@@ -5,7 +5,10 @@ use crate::jokers::ActivationType;
 use crate::jokers::JokerEffect;
 use crate::jokers::create_joker_effect;
 use ortalib::Card;
-use ortalib::{Joker, JokerCard};
+use ortalib::Joker;
+use ortalib::JokerCard;
+use ortalib::Rank;
+use ortalib::Suit;
 
 use crate::explain_dbg;
 
@@ -215,36 +218,76 @@ impl JokerEffect for Blueprint {
         &self,
         game_state: &mut GameState,
         joker_card: &JokerCard,
-        current_card: &Card,
+        _current_card: &Card, // Ignore this parameter
     ) -> GameResult<()> {
         // Find the joker to the right
-        let joker_index = game_state
-            .round
-            .jokers
-            .iter()
-            .position(|j| j.joker == Joker::Blueprint && std::ptr::eq(j, joker_card));
+        let joker_index_option = {
+            game_state
+                .round
+                .jokers
+                .iter()
+                .position(|j| j.joker == joker_card.joker && std::ptr::eq(j, joker_card))
+        };
 
-        if let Some(index) = joker_index {
-            if index < game_state.round.jokers.len() - 1 {
+        if let Some(joker_index) = joker_index_option {
+            if joker_index < game_state.round.jokers.len() - 1 {
                 // There is a joker to the right
-                let next_joker = game_state.round.jokers[index + 1];
-                let next_joker_effect = create_joker_effect(next_joker.joker);
+                let next_joker = game_state.round.jokers[joker_index + 1].joker;
 
                 // Check if the next joker is compatible (not a passive modifier)
-                if next_joker_effect.activation_type() != ActivationType::Independent
-                    || next_joker.joker != Joker::FourFingers
-                        && next_joker.joker != Joker::Shortcut
-                        && next_joker.joker != Joker::Pareidolia
-                        && next_joker.joker != Joker::Splash
-                        && next_joker.joker != Joker::SmearedJoker
+                let effect = create_joker_effect(next_joker);
+
+                // For Independent jokers, we can apply them directly
+                if effect.activation_type() == ActivationType::Independent
+                    && next_joker != Joker::FourFingers
+                    && next_joker != Joker::Shortcut
+                    && next_joker != Joker::Pareidolia
+                    && next_joker != Joker::Splash
+                    && next_joker != Joker::SmearedJoker
                 {
-                    // Apply the copied joker effect
-                    next_joker_effect.apply(game_state, joker_card, current_card)?;
+                    // Create a placeholder card for Independent jokers
+                    let placeholder_card = Card::new(Rank::Ace, Suit::Diamonds, None, None);
+                    effect.apply(game_state, joker_card, &placeholder_card)?;
+
                     explain_dbg!(
                         game_state,
                         "{} copies ability of {}",
                         joker_card.joker,
-                        next_joker.joker
+                        next_joker
+                    );
+                    return Ok(());
+                }
+
+                // For OnScored and OnHeld jokers, we need to add them to a list of
+                // jokers to be processed later, during the appropriate phase
+                if effect.activation_type() == ActivationType::OnScored {
+                    // Add this joker to a list of "blueprint jokers" to be processed
+                    // during card scoring
+                    game_state
+                        .blueprint_copied_jokers
+                        .push((*joker_card, next_joker));
+
+                    explain_dbg!(
+                        game_state,
+                        "{} will copy OnScored ability of {}",
+                        joker_card.joker,
+                        next_joker
+                    );
+                    return Ok(());
+                }
+
+                if effect.activation_type() == ActivationType::OnHeld {
+                    // Add this joker to a list of "blueprint jokers" to be processed
+                    // during held card processing
+                    game_state
+                        .blueprint_held_jokers
+                        .push((*joker_card, next_joker));
+
+                    explain_dbg!(
+                        game_state,
+                        "{} will copy OnHeld ability of {}",
+                        joker_card.joker,
+                        next_joker
                     );
                     return Ok(());
                 }

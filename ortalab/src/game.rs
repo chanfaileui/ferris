@@ -6,7 +6,7 @@ use crate::poker::{analyze_hand_conditions, get_scoring_cards, identify_hand};
 use crate::explain_dbg_bool;
 
 // Import from external crates
-use ortalib::{Card, Chips, Enhancement, Joker, Mult, PokerHand, Round};
+use ortalib::{Card, Chips, Enhancement, Joker, JokerCard, Mult, PokerHand, Round};
 
 #[derive(Debug)]
 pub struct GameState {
@@ -36,6 +36,10 @@ pub struct GameState {
 
     // Used for tracking Photograph joker
     pub first_face_card_processed: bool,
+
+    // Blueprint tracking
+    pub blueprint_copied_jokers: Vec<(JokerCard, Joker)>, // For OnScored jokers
+    pub blueprint_held_jokers: Vec<(JokerCard, Joker)>,   // For OnHeld jokers
 }
 
 impl GameState {
@@ -62,6 +66,8 @@ impl GameState {
             mime_retriggers: 0,
             sock_and_buskin_retriggers: 0,
             first_face_card_processed: false,
+            blueprint_copied_jokers: Vec::new(),
+            blueprint_held_jokers: Vec::new(),
         }
     }
 
@@ -73,6 +79,14 @@ impl GameState {
                 && effect.can_apply(self)
             {
                 effect.apply(self, joker_card, card)?;
+            }
+        }
+
+        // Process Blueprint-copied OnScored jokers
+        for (blueprint_card, copied_joker) in &self.blueprint_copied_jokers.clone() {
+            let effect = jokers::create_joker_effect(*copied_joker);
+            if effect.can_apply(self) {
+                effect.apply(self, blueprint_card, card)?;
             }
         }
 
@@ -169,6 +183,31 @@ impl GameState {
             }
         }
 
+        // Process Blueprint-copied OnHeld jokers
+        for (blueprint_card, copied_joker) in &self.blueprint_held_jokers.clone() {
+            let effect = jokers::create_joker_effect(*copied_joker);
+
+            // Special handling for Raised Fist
+            if *copied_joker == Joker::RaisedFist {
+                // Find the cards with the lowest rank in hand
+                let lowest_rank = self
+                    .round
+                    .cards_held_in_hand
+                    .iter()
+                    .min_by_key(|c| c.rank)
+                    .map(|c| c.rank);
+
+                if let Some(lowest) = lowest_rank {
+                    // Only apply if the current card has the lowest rank
+                    if card.rank == lowest {
+                        effect.apply(self, blueprint_card, card)?;
+                    }
+                }
+            } else if effect.can_apply(self) {
+                effect.apply(self, blueprint_card, card)?;
+            }
+        }
+
         // Handle Mime retriggers
         let retrigger_count = self.mime_retriggers;
         if retrigger_count > 0 {
@@ -221,9 +260,9 @@ impl GameState {
     }
 
     pub fn score(&mut self) -> GameResult<(Chips, Mult)> {
-        // println!("cards_played {:?}", &self.round.cards_played);
-        // println!("cards held in hand {:?}", &self.round.cards_held_in_hand);
-        // println!("jokers! {:?}", &self.round.jokers);
+        // dbg!("cards_played {:?}", &self.round.cards_played);
+        // dbg!("cards held in hand {:?}", &self.round.cards_held_in_hand);
+        // dbg!("jokers! {:?}", &self.round.jokers);
 
         // Basic check
         if self.round.cards_played.is_empty() {
@@ -261,6 +300,8 @@ impl GameState {
             .any(|joker_card| joker_card.joker == Joker::SmearedJoker);
 
         self.first_face_card_processed = false;
+        self.mime_retriggers = 0;
+        self.sock_and_buskin_retriggers = 0;
 
         // Step 1: Identify the poker hand
         let poker_hand: PokerHand = identify_hand(

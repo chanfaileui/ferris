@@ -855,7 +855,10 @@ pub fn get_scoring_cards(
             }
         }
         PokerHand::Flush => {
-            if four_fingers_active && !is_flush(cards, smeared_joker_active) && has_four_card_flush(cards, smeared_joker_active) {
+            if four_fingers_active
+                && !is_flush(cards, smeared_joker_active)
+                && has_four_card_flush(cards, smeared_joker_active)
+            {
                 // Find the suit with at least 4 cards
                 let suit_groups = group_by_suit(cards, smeared_joker_active);
                 if let Some((_, suit_cards)) = suit_groups
@@ -879,39 +882,31 @@ pub fn get_scoring_cards(
                 }
 
                 // Next, check for 4-card straight flush with gaps (Four Fingers active)
-                if four_fingers_active && find_four_card_shortcut_straight_flush(cards, smeared_joker_active).len() == 4 {
+                if four_fingers_active
+                    && find_four_card_shortcut_straight_flush(cards, smeared_joker_active).len()
+                        == 4
+                {
                     return find_four_card_shortcut_straight_flush(cards, smeared_joker_active);
-                }
-
-                // For the complex case with Four Fingers where different cards make the straight and flush
-                if four_fingers_active {
-                    // Find cards that contribute to both a 4-card flush and a 4-card shortcut straight
-                    // This is the case described in the assignment: Q♠ J♠ 9♦ 7♠ 3♠
-                    let flush_cards = find_four_card_flush(cards, smeared_joker_active);
-                    let straight_cards = find_four_card_shortcut_straight(cards);
-
-                    // If we have both, return the combination (might be all cards)
-                    if !flush_cards.is_empty() && !straight_cards.is_empty() {
-                        let mut result = Vec::new();
-                        let mut used_indices = std::collections::HashSet::new();
-
-                        // Add all cards from flush and straight without duplicates
-                        for card in cards {
-                            if (flush_cards.contains(card) || straight_cards.contains(card))
-                                && !used_indices.contains(&card.rank)
-                            {
-                                result.push(*card);
-                                used_indices.insert(card.rank);
-                            }
-                        }
-
-                        return result;
-                    }
                 }
             } else {
                 // Regular straight flush logic
-                if four_fingers_active && find_four_card_straight_flush(cards, smeared_joker_active).len() == 4 {
+                if four_fingers_active
+                    && find_four_card_straight_flush(cards, smeared_joker_active).len() == 4
+                {
                     return find_four_card_straight_flush(cards, smeared_joker_active);
+                }
+            }
+
+            // For Four Fingers, if we have a separate 4-card flush and a straight,
+            // that qualifies as a straight flush, so return all cards
+            if four_fingers_active {
+                let has_four_flush = has_four_card_flush(cards, smeared_joker_active);
+                let has_straight = is_straight(cards)
+                    || (shortcut_active && has_shortcut_straight(cards))
+                    || has_four_card_straight(cards);
+
+                if has_four_flush && has_straight {
+                    return cards.to_vec();
                 }
             }
 
@@ -973,8 +968,8 @@ pub fn analyze_hand_conditions(
         || (four_fingers_active && shortcut_active && has_four_card_shortcut_straight(cards));
 
     // Check for flush (5-card or 4-card with Four Fingers)
-    conditions.contains_flush =
-        is_flush(cards, smeared_joker_active) || (four_fingers_active && has_four_card_flush(cards, smeared_joker_active));
+    conditions.contains_flush = is_flush(cards, smeared_joker_active)
+        || (four_fingers_active && has_four_card_flush(cards, smeared_joker_active));
 
     Ok(conditions)
 }
