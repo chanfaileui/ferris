@@ -7,4 +7,5 @@ cards_played:
 
 cards_held_in_hand: []
 
-jokers: [Shortcut] 
+jokers:
+- Shortcut

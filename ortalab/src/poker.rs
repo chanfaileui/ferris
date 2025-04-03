@@ -207,26 +207,36 @@ fn has_shortcut_straight(cards: &[Card]) -> bool {
         return false;
     }
 
-    // Use rank values rather than Rank enum for easier gap calculation
+    // Convert ranks to their numeric values for easier gap calculation
     let rank_values: Vec<i32> = ranks.iter().map(|r| r.rank_value() as i32).collect();
 
-    // Check standard straights with at most one gap
-    for window in rank_values.windows(5) {
-        let total_gap = window[4] - window[0] - 4; // Expected difference is 4 for 5 consecutive cards
+    // Check all possible windows of 5 cards for valid shortcut straights
+    'window_loop: for window_start in 0..=rank_values.len() - 5 {
+        let window = &rank_values[window_start..window_start + 5];
 
-        if total_gap <= 1 {
-            // This means at most one gap of 1 rank
+        // For a 5-card shortcut straight, the total span should be at most 8
+        // (4 positions with up to 4 gaps of 1 rank each)
+        let total_span = window[4] - window[0];
+
+        if total_span <= 8 {
+            // Count individual gaps to ensure no gap is larger than 1
+            for i in 0..4 {
+                let gap = window[i + 1] - window[i] - 1;
+                if gap > 1 {
+                    // Gap too large, try next window
+                    continue 'window_loop;
+                }
+            }
+            // If we reach here, all gaps are 0 or 1, which is valid
             return true;
         }
     }
 
-    // Special handling for Ace-low straights (Ace counting as 1 instead of 14)
+    // Special handling for Ace-low straights
     if ranks.contains(&Rank::Ace) {
         // Create a new array with Ace = 1 (low) instead of 14 (high)
         let mut low_ace_values: Vec<i32> = Vec::new();
-
-        // Add 1 (low Ace) to the values list
-        low_ace_values.push(1);
+        low_ace_values.push(1); // Add 1 (low Ace)
 
         // Add all non-Ace ranks
         for rank in &ranks {
@@ -234,16 +244,23 @@ fn has_shortcut_straight(cards: &[Card]) -> bool {
                 low_ace_values.push(rank.rank_value() as i32);
             }
         }
-
-        // Sort the new values
         low_ace_values.sort();
 
-        // Check for straights with the Ace as low
-        for window in low_ace_values.windows(5) {
-            let total_gap = window[4] - window[0] - 4;
+        // Check for valid Ace-low shortcut straights
+        'ace_window_loop: for window_start in 0..=low_ace_values.len() - 5 {
+            let window = &low_ace_values[window_start..window_start + 5];
 
-            if total_gap <= 1 {
-                // Valid straight with at most one gap
+            // Same span logic as above
+            let total_span = window[4] - window[0];
+
+            if total_span <= 8 {
+                // Check individual gaps
+                for i in 0..4 {
+                    let gap = window[i + 1] - window[i] - 1;
+                    if gap > 1 {
+                        continue 'ace_window_loop;
+                    }
+                }
                 return true;
             }
         }
@@ -251,7 +268,6 @@ fn has_shortcut_straight(cards: &[Card]) -> bool {
 
     false
 }
-
 /// Checks if the cards form a 4-card straight with gaps (for Four Fingers + Shortcut)
 fn has_four_card_shortcut_straight(cards: &[Card]) -> bool {
     if cards.len() < 4 {
@@ -268,41 +284,62 @@ fn has_four_card_shortcut_straight(cards: &[Card]) -> bool {
         return false;
     }
 
-    // Check for 4-card straights with gaps
-    for window in ranks.windows(4) {
-        // Count gaps
-        let mut gap_count = 0;
-        for i in 0..3 {
-            let gap = window[i + 1].rank_value() as i32 - window[i].rank_value() as i32 - 1;
-            match gap {
-                0 => (), // No gap
-                1 => gap_count += 1,
-                _ => {
-                    gap_count = 2; // Too big gap, invalid
-                    break;
+    // Convert ranks to numeric values
+    let rank_values: Vec<i32> = ranks.iter().map(|r| r.rank_value() as i32).collect();
+
+    // Check all possible windows of 4 cards
+    'window_loop: for window_start in 0..=rank_values.len() - 4 {
+        let window = &rank_values[window_start..window_start + 4];
+
+        // For a 4-card shortcut straight, the total span should be at most 6
+        // (3 positions with up to 3 gaps of 1 rank each)
+        let total_span = window[3] - window[0];
+
+        if total_span <= 6 {
+            // Check individual gaps to ensure no gap is larger than 1
+            for i in 0..3 {
+                let gap = window[i + 1] - window[i] - 1;
+                if gap > 1 {
+                    // Gap too large, try next window
+                    continue 'window_loop;
                 }
             }
-        }
-
-        // Shortcut allows at most one gap
-        if gap_count <= 1 {
+            // All gaps are 0 or 1, valid shortcut straight
             return true;
         }
     }
 
-    // Special case for Ace-low straight with a gap
+    // Special case for Ace-low
     if ranks.contains(&Rank::Ace) {
-        // Check for A-2-4 or A-3-4
-        let has_two = ranks.contains(&Rank::Two);
-        let has_three = ranks.contains(&Rank::Three);
-        let has_four = ranks.contains(&Rank::Four);
+        let mut low_ace_values = vec![1]; // Ace as 1
 
-        if has_two && has_four && !has_three {
-            return true; // A-2-4 (one gap)
+        // Add non-Ace ranks
+        for rank in &ranks {
+            if *rank != Rank::Ace {
+                low_ace_values.push(rank.rank_value() as i32);
+            }
         }
+        low_ace_values.sort();
 
-        if has_three && has_four && !has_two {
-            return true; // A-3-4 (one gap)
+        // Check Ace-low windows
+        'ace_window_loop: for window_start in 0..=low_ace_values.len() - 4 {
+            if low_ace_values.len() < window_start + 4 {
+                break;
+            }
+
+            let window = &low_ace_values[window_start..window_start + 4];
+            let total_span = window[3] - window[0];
+
+            if total_span <= 6 {
+                // Check individual gaps
+                for i in 0..3 {
+                    let gap = window[i + 1] - window[i] - 1;
+                    if gap > 1 {
+                        continue 'ace_window_loop;
+                    }
+                }
+                return true;
+            }
         }
     }
 

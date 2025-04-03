@@ -1,0 +1,9 @@
+Test case YAML:
+cards_played:
+- 10♦ Wild
+- 10♦ Steel
+cards_held_in_hand:
+- K♠ Steel
+- 6♥ Foil
+jokers:
+- Blueprint
