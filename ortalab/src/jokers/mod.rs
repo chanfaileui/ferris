@@ -1,3 +1,18 @@
+//! # Jokers Module
+//!
+//! This module handles all joker-related functionality in the game.
+//!
+//! ## Structure
+//! - `basic`: Contains implementations for simple jokers with straightforward effects
+//! - `medium`: Contains implementations for intermediate complexity jokers
+//! - `complex`: Contains implementations for advanced jokers with complex effects
+//!
+//! ## Core Components
+//! - `ActivationType`: Enum defining when joker effects activate
+//! - `JokerEffect`: Trait that all joker implementations must implement
+//! - `create_joker_effect`: Factory function to create the appropriate joker effect
+//! - `apply_joker_edition`: Handles special editions of jokers (Foil, Holographic, Polychrome)
+//! - `process_jokers`: Orchestrates the application of joker effects in the correct order
 pub mod basic;
 pub mod complex;
 pub mod medium;
@@ -20,6 +35,7 @@ pub enum ActivationType {
 pub trait JokerEffect {
     /// The type of activation for this joker
     fn activation_type(&self) -> ActivationType;
+
     /// Apply the joker's effect to the game state
     fn apply(
         &self,
@@ -30,7 +46,7 @@ pub trait JokerEffect {
 
     /// Optional method for checking if a joker can be applied
     fn can_apply(&self, _game_state: &GameState) -> bool {
-        true // Default implementation always allows application
+        true // Default implementation
     }
 }
 
@@ -79,7 +95,7 @@ pub fn create_joker_effect(joker: Joker) -> Box<dyn JokerEffect> {
     }
 }
 
-/// Processes joker editions
+/// Processes joker editions (Foil, Holographic, Polychrome)
 pub fn apply_joker_edition(
     joker_card: &JokerCard,
     chips: &mut Chips,

@@ -1,3 +1,18 @@
+//! # Balatro Poker Hand Scorer
+//!
+//! This application scores poker hands according to the rules of Balatro,
+//! including the effects of jokers and card enhancements.
+
+//! ## Usage
+//! The application takes a YAML file describing a round (cards, jokers, etc.)
+//! and outputs the final score after applying all rules and effects.
+//!
+//! ```
+//! 6991 cargo run input.yaml [--explain]
+//! ```
+//!
+//! The `--explain` flag enables detailed explanation of the scoring process.
+
 mod debug;
 mod errors;
 mod game;

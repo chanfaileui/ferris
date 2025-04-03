@@ -1,6 +1,26 @@
+//! # Poker Module
+//!
+//! This module contains functions for poker hand analysis and identification.
+//!
+//! ## Key Components
+//! - `identify_hand()`: Determines the poker hand type from a set of cards
+//! - `get_scoring_cards()`: Identifies which cards contribute to scoring
+//! - `analyse_hand_conditions()`: Analyses hand for specific conditions (pairs, straights, etc.)
+//!
+//! ## Hand Analysis
+//! The module supports standard poker hand analysis as well as special cases:
+//! - Shortcut joker effects (allowing straights with gaps)
+//! - Four Fingers joker effects (allowing 4-card hands)
+//! - Smeared Joker effects (treating cards as having both suits of the same color)
+//!
+//! ## Helper Functions
+//! Various helper functions support the analysis of specific hand types:
+//! - Straight detection (regular and shortcut)
+//! - Flush detection
+//! - Pair/Three-of-a-kind/etc. detection
+
 use crate::errors::GameResult;
 use enum_iterator::Sequence;
-// use itertools::Itertools;
 use indexmap::IndexMap;
 use ortalib::{Card, PokerHand, Rank, Suit};
 
@@ -47,6 +67,7 @@ fn group_by_suit(cards: &[Card], smeared_joker_active: bool) -> IndexMap<Suit, V
 
     suit_cards
 }
+
 /// Determines if the cards form a flush (all cards of the same suit)
 fn is_flush(cards: &[Card], smeared_joker_active: bool) -> bool {
     if cards.len() < 5 {
@@ -59,6 +80,8 @@ fn is_flush(cards: &[Card], smeared_joker_active: bool) -> bool {
     // Check if any suit has enough cards for a flush
     suit_groups.values().any(|suit_cards| suit_cards.len() >= 5)
 }
+
+/// Determines if the cards form a straight (consecutive ranks)
 fn is_straight(cards: &[Card]) -> bool {
     if cards.len() < 5 {
         return false; // Not enough cards for a straight
@@ -113,7 +136,7 @@ fn has_three_two_pattern(cards: &[Card]) -> bool {
     counts.contains(&3) && counts.contains(&2)
 }
 
-// Check if there's a 4-card flush in the hand
+/// Check if there's a 4-card flush in the hand
 fn has_four_card_flush(cards: &[Card], smeared_joker_active: bool) -> bool {
     if cards.len() < 4 {
         return false;
@@ -126,7 +149,7 @@ fn has_four_card_flush(cards: &[Card], smeared_joker_active: bool) -> bool {
     suit_groups.values().any(|cards| cards.len() >= 4)
 }
 
-// Check if there's a 4-card straight in the hand
+/// Check if there's a 4-card straight in the hand
 fn has_four_card_straight(cards: &[Card]) -> bool {
     if cards.len() < 4 {
         return false;
@@ -328,6 +351,11 @@ fn has_four_card_shortcut_straight(cards: &[Card]) -> bool {
     false
 }
 
+/// Identifies the poker hand type from a set of cards
+///
+/// This function analyses the cards and determines the poker hand type
+/// based on the rules of Balatro. It supports standard poker hands
+/// as well as special cases like shortcut straights and four-card straights.
 pub fn identify_hand(
     cards: &[Card],
     four_fingers_active: bool,
@@ -702,25 +730,6 @@ fn find_shortcut_straight_flush_cards(cards: &[Card], smeared_joker_active: bool
     Vec::new()
 }
 
-// /// Find cards forming a four-card shortcut straight flush
-// fn find_four_card_shortcut_straight_flush(cards: &[Card], smeared_joker_active: bool) -> Vec<Card> {
-//     // Group by suit
-//     let suit_groups = group_by_suit(cards, smeared_joker_active);
-
-//     // Check each suit group for a 4-card shortcut straight
-//     for (_, suit_cards) in suit_groups {
-//         if suit_cards.len() >= 4 {
-//             let suit_cards_vec: Vec<Card> = suit_cards.iter().map(|&&c| c).collect();
-//             if has_four_card_shortcut_straight(&suit_cards_vec) {
-//                 return find_four_card_shortcut_straight(&suit_cards_vec);
-//             }
-//         }
-//     }
-
-//     // Fallback
-//     Vec::new()
-// }
-
 /// Returns the cards that contribute to the scoring for a given poker hand
 ///
 /// According to the rules, generally only the cards relevant to the poker hand
@@ -936,6 +945,9 @@ pub fn get_scoring_cards(
         | PokerHand::FullHouse => cards.to_vec(),
     }
 }
+
+/// Analyses a hand of cards to determine what poker hand conditions exist
+/// This is useful for jokers that activate based on the presence of certain hand conditions
 #[derive(Debug, Default)]
 pub struct HandConditions {
     pub contains_pair: bool,
@@ -945,9 +957,9 @@ pub struct HandConditions {
     pub contains_flush: bool,
 }
 
-/// Analyzes a hand of cards to determine what poker hand conditions exist
+/// Analyses a hand of cards to determine what poker hand conditions exist
 /// This is useful for jokers that activate based on the presence of certain hand conditions
-pub fn analyze_hand_conditions(
+pub fn analyse_hand_conditions(
     cards: &[Card],
     four_fingers_active: bool,
     shortcut_active: bool,
@@ -955,7 +967,7 @@ pub fn analyze_hand_conditions(
 ) -> GameResult<HandConditions> {
     let mut conditions = HandConditions::default();
 
-    // Analyze ranks to find pairs and three-of-a-kinds
+    // Analyse ranks to find pairs and three-of-a-kinds
     let rank_counts = group_rank(cards);
 
     // Check for pairs and three-of-a-kinds

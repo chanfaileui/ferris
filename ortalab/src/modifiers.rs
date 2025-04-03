@@ -1,8 +1,14 @@
+//! # Modifiers Module
+//!
+//! This module handles card modifiers such as enhancements and editions.
+//! It provides functions to apply various card modifiers to the game state.
+
 use crate::errors::GameResult;
 use ortalib::{Card, Chips, Edition, Enhancement, Mult};
 
 use crate::explain_dbg_bool;
 
+/// Applies enhancement effects to the game state
 pub fn apply_enhancement(
     card: &Card,
     chips: &mut Chips,
@@ -40,6 +46,7 @@ pub fn apply_enhancement(
     Ok(())
 }
 
+/// Applies edition effects to the game state
 pub fn apply_edition(
     card: &Card,
     chips: &mut Chips,
@@ -82,7 +89,7 @@ pub fn apply_edition(
     Ok(())
 }
 
-// Function to handle Steel enhancement for cards held in hand
+/// Applies Steel enhancement effects for cards held in hand
 pub fn apply_steel_enhancement(
     card: &Card,
     chips: &mut Chips,

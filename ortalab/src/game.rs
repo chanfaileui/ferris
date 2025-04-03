@@ -1,7 +1,29 @@
+//! # Game Module
+//!
+//! This module contains the core game logic and scoring system.
+//!
+//! ## Key Components
+//! - `GameState`: The central struct that tracks all game information during scoring
+//! - `score()`: Main scoring algorithm that processes cards and applies joker effects
+//!
+//! ## Scoring Process
+//! 1. Process initial joker flags and Blueprint effects
+//! 2. Identify the poker hand and set base chips/multiplier
+//! 3. Analyse hand conditions (pairs, straights, etc.) for joker effects
+//! 4. Determine which cards contribute to scoring
+//! 5. Process each scoring card individually
+//! 6. Process cards held in hand
+//! 7. Process independent joker effects
+//!
+//! ## Joker Processing
+//! - `process_on_scored_jokers()`: Handles jokers that activate when cards are scored
+//! - `process_on_held_jokers()`: Handles jokers that activate based on cards in hand
+//! - Special handling for retrigger effects (Mime, Sock and Buskin)
+
 use crate::errors::{GameError, GameResult};
 use crate::jokers;
 use crate::modifiers::{apply_edition, apply_enhancement, apply_steel_enhancement};
-use crate::poker::{analyze_hand_conditions, get_scoring_cards, identify_hand};
+use crate::poker::{analyse_hand_conditions, get_scoring_cards, identify_hand};
 
 use crate::explain_dbg_bool;
 
@@ -331,8 +353,8 @@ impl GameState {
             base_mult
         );
 
-        // Step 3: Analyze hand conditions for joker effects
-        let conditions = analyze_hand_conditions(
+        // Step 3: Analyse hand conditions for joker effects
+        let conditions = analyse_hand_conditions(
             &self.round.cards_played,
             self.four_fingers_active,
             self.shortcut_active,
