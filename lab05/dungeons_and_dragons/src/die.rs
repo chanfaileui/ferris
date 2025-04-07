@@ -19,9 +19,31 @@ pub enum Die {
 
 pub struct Coin;
 
-
 // MODIFY/ADD BELOW HERE ONLY
 
-pub fn roll<T>(item: T) -> u8 {
-    todo!()
+pub trait RandomRoll {
+    fn roll(&self) -> u8;
+}
+
+impl RandomRoll for Coin {
+    fn roll(&self) -> u8 {
+        get_random_value(2)
+    }
+}
+
+impl RandomRoll for Die {
+    fn roll(&self) -> u8 {
+        match self {
+            Die::D4 => get_random_value(4),
+            Die::D6 => get_random_value(6),
+            Die::D8 => get_random_value(8),
+            Die::D10 => get_random_value(10),
+            Die::D12 => get_random_value(12),
+            Die::D20 => get_random_value(20),
+        }
+    }
+}
+
+pub fn roll<T: RandomRoll>(die: T) -> u8 {
+    die.roll()
 }
