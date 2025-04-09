@@ -17,14 +17,32 @@ impl From<InstructionNumber> for u32 {
 
 #[derive(Clone)]
 struct Hook {
-    num_left: u32,
-    callback: Rc<dyn Fn(&mut Cpu)>,
+    num_left: u32, // number of instructions left to execute before the callback is called
+    callback: Rc<dyn Fn(&mut Cpu)>, // reference-counted pointer that allows for shared ownership of the enclosed value
+                                    // note that it is a Fn closure, meaning it can be called multiple times
 }
 
 impl Hook {
     // TODO: implement the new method
+    // function accepts any closure that matches the required signature and wraps it in an Rc
+    // Accept any type F that implements Fn(&mut Cpu) and lives for the entire program ('static)
+    fn new<F>(num_left: u32, callback: F) -> Self
+    where
+        F: Fn(&mut Cpu) + 'static,
+    {
+        Hook {
+            num_left,
+            callback: Rc::new(callback),
+        }
+    }
 
     // TODO: implement a call method
+    fn call(&self, cpu: &mut Cpu) {
+        // This calls the callback function stored in this Hook
+        // The callback is a reference-counted function pointer (Rc<dyn Fn(&mut Cpu)>)
+        // that takes a mutable reference to the CPU and performs some operation on it
+        (self.callback)(cpu);
+    }
 }
 
 enum Instruction<F: Fn(&Cpu) -> bool> {
@@ -47,9 +65,11 @@ enum Instruction<F: Fn(&Cpu) -> bool> {
 }
 
 // You can, and should modify the Cpu struct
+// So the CPU needs some way to keep track of hooks, including the hook that should be run
 struct Cpu {
     current_instruction: InstructionNumber,
     accumulator: u32,
+    hooks: Vec<Hook>,
 }
 
 impl Cpu {
@@ -57,6 +77,7 @@ impl Cpu {
         Cpu {
             current_instruction: InstructionNumber(0),
             accumulator: 0,
+            hooks: Vec::new(),
         }
     }
 
@@ -82,6 +103,7 @@ impl Cpu {
                 Instruction::Callback(hook) => {
                     println!("\t...callback instruction");
                     //TODO: implement this
+                    self.hooks.push(hook.clone());
                 }
                 Instruction::JumpIfCondition(condition, n) => {
                     println!("\t...conditional jump");
@@ -94,6 +116,54 @@ impl Cpu {
                 }
             }
             self.current_instruction.0 += 1;
+
+            // You need to look through your list of hooks (which borrows self immutably)
+            // For each hook that's ready, you need to call its callback (which requires borrowing self mutably)
+            // Rust doesn't allow these two kinds of borrows to exist at the same time
+
+            // Process hooks
+            // After incrementing self.current_instruction.0
+            // First: Decrement counters and identify hooks to execute
+            let mut hooks_to_execute = Vec::new();
+            let mut indices_to_remove = Vec::new();
+
+            for (i, hook) in self.hooks.iter_mut().enumerate() {
+                hook.num_left -= 1;
+                if hook.num_left == 0 {
+                    hooks_to_execute.push(hook.clone());
+                    indices_to_remove.push(i);
+                }
+            }
+
+            // Second: Execute the hooks (this uses mutable borrow of self)
+            for hook in hooks_to_execute {
+                hook.call(self);
+            }
+
+            // Third: Remove executed hooks (in reverse order to maintain indices)
+            for &i in indices_to_remove.iter().rev() {
+                self.hooks.remove(i);
+            }
+
+            // ALTERNATE:
+            // // Make a copy of all hooks
+            // let hooks_copy = self.hooks.clone();
+
+            // self.hooks.clear(); // Remove all hooks since we'll re-add the ones that aren't ready
+
+            // // Process each hook
+            // for mut hook in hooks_copy {
+            //     // Decrement the counter
+            //     hook.num_left -= 1;
+
+            //     if hook.num_left == 0 {
+            //         // Execute the hook if it's ready
+            //         hook.call(self);
+            //     } else {
+            //         // Put it back in the list if it's not ready
+            //         self.hooks.push(hook);
+            //     }
+            // }
         }
     }
 }
