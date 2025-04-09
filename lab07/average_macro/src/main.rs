@@ -1,6 +1,17 @@
-
 // YOUR MACRO HERE
-
+macro_rules! avg {
+    ($($x:expr),*) => {
+        {
+            let mut count = 0;
+            let mut sum = 0;
+            $(
+                count += 1;
+                sum += $x;
+            )*
+            sum as i32 / count as i32
+        }
+    }
+}
 
 // DO NOT CHANGE
 fn main() {

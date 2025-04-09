@@ -1,5 +1,30 @@
 //TODO: Your curry! macro here:
 
+// ver 1: works by matching next arg
+// macro_rules! curry {
+//     (($($arg:tt)+) => ($($next_arg:tt)+) => $($rest:tt)*) => {
+//         move |$($arg)+| curry!(($($next_arg)+) => $($rest)*)
+//     };
+//     (($($arg:tt)+) => _, $body:block) => {
+//         move |$($arg)+| $body
+//     };
+//     ($body:block) => {
+//         $body
+//     };
+// }
+
+// order of patterns is important!!
+macro_rules! curry {
+    (($($arg:tt)+) => _, $body:block) => {
+        move |$($arg)+| $body
+    };
+    (($($arg:tt)+) => $($rest:tt)*) => {
+        move |$($arg)+| curry!($($rest)*)
+    };
+    ($body:block) => {
+        $body
+    };
+}
 
 ////////// DO NOT CHANGE BELOW HERE /////////
 

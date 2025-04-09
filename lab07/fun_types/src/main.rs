@@ -5,7 +5,15 @@ pub enum MyOption {
 }
 
 impl MyOption {
-    // TODO - implement map
+    fn map<F>(self, some_closure: F) -> Self
+    where
+        F: FnOnce(i32) -> i32, // according to Rust std lib?!
+    {
+        match self {
+            MyOption::Some(x) => MyOption::Some(some_closure(x)),
+            MyOption::None => MyOption::None,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -14,8 +22,25 @@ pub struct MyVec {
 }
 
 impl MyVec {
-    // TODO - implement for_each
-    // TODO - implement map
+    // TODO - implement for_each: do function on each item
+    // TODO - implement map: edit in place
+    fn for_each<F>(&self, mut f: F)
+    where
+        F: FnMut(i32)
+    {
+        for item in &self.items[..] {
+            f(*item);
+        }
+    }
+
+    fn map<F>(& mut self, mut f: F)
+    where
+        F: FnMut(i32) -> i32
+    {
+        for item in &mut self.items[..] {
+            *item = f(*item);
+        }
+    }
 }
 
 fn main() {
