@@ -3,24 +3,50 @@ use rsheet_lib::connect::{
     Connection, Manager, ReadMessageResult, Reader, WriteMessageResult, Writer,
 };
 use rsheet_lib::replies::Reply;
+use spreadsheet::Spreadsheet;
 
 use std::error::Error;
+use std::sync::{Arc, RwLock};
+use std::thread;
 
 use log::info;
+
+mod cell;
+mod spreadsheet;
 
 pub fn start_server<M>(mut manager: M) -> Result<(), Box<dyn Error>>
 where
     M: Manager,
 {
-    // This initiates a single client connection, and reads and writes messages
-    // indefinitely.
-    let (mut recv, mut send) = match manager.accept_new_connection() {
-        Connection::NewConnection { reader, writer } => (reader, writer),
-        Connection::NoMoreConnections => {
-            // There are no more new connections to accept.
-            return Ok(());
-        }
-    };
+    let spreadsheet = Arc::new(RwLock::new(Spreadsheet::new()));
+
+    loop {
+        match manager.accept_new_connection() {
+            Connection::NewConnection { reader, writer } => {
+                let spreadsheet_clone = Arc::clone(&spreadsheet);
+                thread::spawn(move || {
+                    if let Err(e) = handle_connection(reader, writer, spreadsheet_clone) {
+                        eprintln!("Error in connection handler: {}", e);
+                    }
+                })
+            }
+            Connection::NoMoreConnections => {
+                // There are no more new connections to accept.
+                return Ok(());
+            }
+        };
+    }
+}
+
+pub fn handle_connection<R, W>(
+    mut recv: R,
+    mut send: W,
+    spreadsheet: Arc<RwLock<Spreadsheet>>,
+) -> Result<(), Box<dyn Error>>
+where
+    R: Reader,
+    W: Writer,
+{
     loop {
         info!("Just got message");
         match recv.read_message() {
@@ -31,7 +57,14 @@ where
                 // change this code.
                 let reply = match msg.parse::<Command>() {
                     Ok(command) => match command {
-                        Command::Get { cell_identifier } => todo!(),
+                        Command::Get { cell_identifier } => {
+                            let sheet = spreadsheet.read().unwrap();
+                            let val = sheet.get(&cell_identifier);
+                            match val {
+                                Some(val) => Reply::Value(format!("{:?}", cell_identifier), val.to_string()),
+                                None => Reply::Error("Cell not found".into()),
+                            }
+                        },
                         Command::Set {
                             cell_identifier,
                             cell_expr,
