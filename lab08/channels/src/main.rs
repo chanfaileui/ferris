@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use std::thread;
+use std::{sync::mpsc, thread};
 
 mod test;
 fn main() {
@@ -30,29 +30,49 @@ fn main() {
     // you only need to change code from here onwards
     // first, split up the digits_operators into 6 vecs
     // using the chunks method
-    let chunks: Vec<&[(Vec<i32>, Vec<char>)]> = digits_operators
-        .chunks(digits_operators.len() / 6)
-        .collect();
+    let chunks: Vec<&[(Vec<i32>, Vec<char>)]> = digits_operators.chunks(length / 6).collect();
 
+    let (tx, rx) = mpsc::channel();
     thread::scope(|scope| {
-        for chunk in chunks {
+        for (i, chunk) in chunks.iter().enumerate() {
+            let tx_clone = tx.clone();
             scope.spawn(move || {
-                // Approach 1: for loop
-                // for (digits, operators) in chunk {
-                //     let _ = calculate(digits.clone(), operators.clone());
-                // }
-
-                // Approach 2: functional programming
+                let mut sum = 0;
                 chunk.iter().for_each(|(digits, operators)| {
-                    let _ = calculate(digits.to_vec(), operators.to_vec());
+                    if let Ok(true) = calculate(digits.to_vec(), operators.to_vec()) {
+                        sum += 1;
+                    }
                 });
+                tx_clone.send((i, sum)).unwrap();
             });
         }
+        drop(tx);
     });
+
+    let mut total = 0;
+    for received in rx {
+        let (thread_id, thread_total) = received;
+        println!("Thread {:?} found {:?} combinations", thread_id, thread_total);
+        total += thread_total;
+    }
+    println!("Total: {}", total)
+    
+    // ALTERNATE: to avoid the explicit drop(tx)
+    // let mut total = 0;
+    // // Since you know you have 6 threads
+    // for _ in 0..6 {
+    //     let (thread_id, thread_total) = rx.recv().unwrap();
+    //     println!(
+    //         "Thread {:?} found {:?} combinations",
+    //         thread_id, thread_total
+    //     );
+    //     total += thread_total;
+    // }
+    // println!("Total: {}", total);
 }
 
 // DO NOT MODIFY
-fn calculate(digits: Vec<i32>, operators: Vec<char>) -> Result<(), ()> {
+fn calculate(digits: Vec<i32>, operators: Vec<char>) -> Result<bool, ()> {
     let num1 = digits[0];
     let num2 = digits[1];
     let num3 = digits[2];
@@ -74,9 +94,10 @@ fn calculate(digits: Vec<i32>, operators: Vec<char>) -> Result<(), ()> {
             "{} {} {} {} {} {} {} {} {} = 10",
             num1, op1, num2, op2, num3, op3, num4, op4, num5
         );
+        return Ok(true);
     }
 
-    Ok(())
+    Ok(false)
 }
 
 // DO NOT MODIFY
