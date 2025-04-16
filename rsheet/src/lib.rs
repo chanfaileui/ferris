@@ -71,21 +71,28 @@ where
                             cell_identifier,
                             cell_expr,
                         } => {
-                            let sheet = spreadsheet.read().unwrap();
-                            let cell_expr = CellExpr::new(&cell_expr);
-                            match cell_expr {
-                                AST(ast) => 
-                            }
+                            let sheet = spreadsheet.write().unwrap();
+                            let cell_expr = CellExpr::new(&cell_expr).evaluate();
+ 
                             let cell = Cell {
-                                expr: cell_expr.clone(),
-                                value: cell_expr,
-                                timestamp: Timestamp::new(),
+                                expr: match cell_expr {
+                                    Ok(val) => Some(val.to_string()),
+                                    Err(_) => None,
+                                },
+                                value: match cell_expr {
+                                    Ok(val) => val,
+                                    Err(_) => return Err(Box::new(std::io::Error::new(
+                                        std::io::ErrorKind::InvalidData,
+                                        "Failed to evaluate cell expression",
+                                    ))),
+                                },
+                                timestamp: std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap()
+                                    .as_secs(),
                             };
-                            let val = sheet.set(cell_identifier, cell);
-                            match val {
-                                Some(val) => Reply::Value(format!("{:?}", cell_identifier), val.to_string()),
-                                None => Reply::Error("Cell not found".into()),
-                            }
+                            sheet.set(cell_identifier.clone(), cell);
+                            return Ok(());
                         },
                     },
                     Err(e) => Reply::Error(e),
