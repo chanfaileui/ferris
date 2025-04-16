@@ -1,10 +1,12 @@
+use cell::Cell;
+use env_logger::fmt::Timestamp;
+use rsheet_lib::cell_expr::CellExpr;
 use rsheet_lib::command::Command;
 use rsheet_lib::connect::{
     Connection, Manager, ReadMessageResult, Reader, WriteMessageResult, Writer,
 };
 use rsheet_lib::replies::Reply;
 use spreadsheet::Spreadsheet;
-
 use std::error::Error;
 use std::sync::{Arc, RwLock};
 use std::thread;
@@ -68,7 +70,23 @@ where
                         Command::Set {
                             cell_identifier,
                             cell_expr,
-                        } => todo!(),
+                        } => {
+                            let sheet = spreadsheet.read().unwrap();
+                            let cell_expr = CellExpr::new(&cell_expr);
+                            match cell_expr {
+                                AST(ast) => 
+                            }
+                            let cell = Cell {
+                                expr: cell_expr.clone(),
+                                value: cell_expr,
+                                timestamp: Timestamp::new(),
+                            };
+                            let val = sheet.set(cell_identifier, cell);
+                            match val {
+                                Some(val) => Reply::Value(format!("{:?}", cell_identifier), val.to_string()),
+                                None => Reply::Error("Cell not found".into()),
+                            }
+                        },
                     },
                     Err(e) => Reply::Error(e),
                 };

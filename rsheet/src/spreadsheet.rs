@@ -23,7 +23,8 @@ impl Spreadsheet {
     pub fn get(&self, cell: &CellIdentifier) -> Option<&Cell> {
         self.cells.get(cell)
     }
-    pub fn set(&mut self, cell: CellIdentifier, value: Cell) {
+    pub fn set(&mut self, cell: CellIdentifier, value: String) {
+        
         self.cells.insert(cell, value);
     }
     pub fn add_dependency(&mut self, cell: CellIdentifier, dependency: CellIdentifier) {
