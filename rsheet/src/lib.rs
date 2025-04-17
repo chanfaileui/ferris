@@ -78,6 +78,7 @@ where
                         } => {
                             let cell_expr = CellExpr::new(&cell_expr);
                             let cell_variables = cell_expr.find_variable_names();
+
                             let variables = if !cell_variables.is_empty() {
                                 parse_variables(&spreadsheet.read().unwrap(), cell_variables)
                             } else {
@@ -88,6 +89,13 @@ where
                             match cell_expr.evaluate(&variables) {
                                 Ok(value) => {
                                     sheet.set(cell_identifier, Cell::new(value));
+                                    // let cell = Cell::new_with_expr(cell_identifier_to_string(cell_expr), value);
+
+                                    // sheet.evaluate_cell(
+                                    //     cell_identifier,
+                                    //     cell,
+                                    //     dependencies
+                                    // );
                                     None
                                 }
                                 Err(e) => Some(Reply::Error(format!("Evaluation error: {:?}", e))),
