@@ -16,8 +16,6 @@ use std::thread;
 use log::info;
 
 mod cell;
-#[macro_use]
-mod debug;
 mod eval;
 mod spreadsheet;
 
@@ -64,10 +62,6 @@ where
         info!("Just got message");
         match recv.read_message() {
             ReadMessageResult::Message(msg) => {
-                // rsheet_lib already contains a FromStr<Command> (i.e. parse::<Command>)
-                // implementation for parsing the get and set commands. This is just a
-                // demonstration of how to use msg.parse::<Command>, you may want/have to
-                // change this code.
                 let maybe_reply: Option<Reply> = match msg.parse::<Command>() {
                     Ok(command) => match command {
                         Command::Get { cell_identifier } => {

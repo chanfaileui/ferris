@@ -15,6 +15,8 @@ struct Args {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    // setting the environment var for logging - commend out when unneeded
+    std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
     let args = Args::parse();

@@ -89,7 +89,7 @@ fn parse_scalar_variable(
     cell_variable: &String,
     variables: &mut HashMap<String, CellArgument>,
 ) {
-    let cell_identifier = match CellIdentifier::from_str(&cell_variable) {
+    let cell_identifier = match CellIdentifier::from_str(cell_variable) {
         Ok(identifier) => identifier,
         Err(_) => return, // Skip invalid identifiers
     };

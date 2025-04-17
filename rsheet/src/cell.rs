@@ -38,4 +38,8 @@ impl Cell {
     pub fn expr(&self) -> Option<&String> {
         self.expr.as_ref()
     }
+
+    pub fn timestamp(&self) -> &u64 {
+        &self.timestamp
+    }
 }
