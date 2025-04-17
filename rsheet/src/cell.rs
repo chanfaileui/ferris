@@ -9,10 +9,10 @@ pub struct Cell {
 }
 
 impl Cell {
-    pub fn new(value: CellValue) -> Self {
+    pub fn new(value: &CellValue) -> Self {
         Self {
             expr: None,
-            value,
+            value: value.clone(),
             timestamp: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()

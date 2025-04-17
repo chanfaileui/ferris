@@ -1,4 +1,9 @@
-set A1 error-this-isn't real code
-set A2 A1
-get A1
-get A2
+set A1 3
+set B1 A1 + 3
+get B1
+set A7 16
+set A8 A7 / 2
+get A8
+set A1 7
+sleep 2000
+get B1

@@ -1,5 +1,5 @@
 use cell::Cell;
-use eval::parse_variables;
+use eval::parse_variables_with_deps;
 use rsheet_lib::cell_expr::{CellExpr, CellExprEvalError};
 use rsheet_lib::cell_value::CellValue;
 use rsheet_lib::cells::column_number_to_name;
@@ -9,7 +9,7 @@ use rsheet_lib::connect::{
 };
 use rsheet_lib::replies::Reply;
 use spreadsheet::Spreadsheet;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::sync::{Arc, RwLock};
 use std::thread;
@@ -60,7 +60,7 @@ where
     W: Writer,
 {
     loop {
-        // info!("Just got message");
+        info!("Just got message");
         match recv.read_message() {
             ReadMessageResult::Message(msg) => {
                 let maybe_reply: Option<Reply> = match msg.parse::<Command>() {
@@ -77,10 +77,8 @@ where
                                             CellExprEvalError::VariableDependsOnError
                                         )
                                     {
-                                        // This is scenario 2 - return just the error
                                         Some(Reply::Error(e.to_string()))
                                     } else {
-                                        // This is scenario 1 - return the cell identifier with the error
                                         Some(Reply::Value(
                                             cell_identifier_to_string(cell_identifier),
                                             val,
@@ -100,32 +98,30 @@ where
                             cell_identifier,
                             cell_expr,
                         } => {
-                            let cell_expr = CellExpr::new(&cell_expr);
-                            let cell_variables = cell_expr.find_variable_names();
+                            let cell_expr_obj = CellExpr::new(&cell_expr);
+                            let cell_variables = cell_expr_obj.find_variable_names();
 
-                            let variables = if !cell_variables.is_empty() {
-                                parse_variables(&spreadsheet.read().unwrap(), cell_variables)
+                            let (variables, dependencies) = if !cell_variables.is_empty() {
+                                parse_variables_with_deps(
+                                    &spreadsheet.read().unwrap(),
+                                    cell_variables,
+                                )
                             } else {
-                                HashMap::new()
+                                (HashMap::new(), HashSet::new())
                             };
 
                             let mut sheet = spreadsheet.write().unwrap();
-                            match cell_expr.evaluate(&variables) {
+                            match cell_expr_obj.evaluate(&variables) {
                                 Ok(value) => {
-                                    sheet.set(cell_identifier, Cell::new(value));
-                                    // let cell = Cell::new_with_expr(cell_identifier_to_string(cell_expr), value);
-
-                                    // sheet.evaluate_cell(
-                                    //     cell_identifier,
-                                    //     cell,
-                                    //     dependencies
-                                    // );
+                                    sheet.set(cell_identifier, Cell::new(&value));
+                                    let cell = Cell::new_with_expr(cell_expr, value);
+                                    sheet.evaluate_cell(cell_identifier, cell, dependencies);
                                     None
                                 }
                                 Err(e) => {
                                     sheet.set(
                                         cell_identifier,
-                                        Cell::new(CellValue::Error(format!("{:?}", e))),
+                                        Cell::new(&CellValue::Error(format!("{:?}", e))),
                                     );
                                     None
                                 }

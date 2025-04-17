@@ -1,3 +1,3 @@
-Error: Evaluation error: VariableDependsOnError
-A1 = Error: "'this' can only be used in functions (line 1, position 7)"
-A2 = None
+B1 = 6
+A8 = 8
+B1 = 6

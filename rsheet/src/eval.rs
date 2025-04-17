@@ -1,32 +1,46 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
-use clap::Error;
 use log::info;
 use rsheet_lib::{cell_expr::CellArgument, cell_value::CellValue, command::CellIdentifier};
 
 use crate::spreadsheet::Spreadsheet;
 
 // Extract this into a helper function
-pub fn parse_variables(
+pub fn parse_variables_with_deps(
     spreadsheet: &Spreadsheet,
     cell_variables: Vec<String>,
-) -> HashMap<String, CellArgument> {
+) -> (HashMap<String, CellArgument>, HashSet<CellIdentifier>) {
     let mut variables: HashMap<String, CellArgument> = HashMap::new();
+    let mut dependencies: HashSet<CellIdentifier> = HashSet::new();
 
     for cell_variable in cell_variables {
         if cell_variable.contains('_') {
-            parse_range_variable(spreadsheet, &cell_variable, &mut variables);
+            parse_range_variable_with_deps(
+                spreadsheet,
+                &cell_variable,
+                &mut variables,
+                &mut dependencies,
+            );
         } else {
-            parse_scalar_variable(spreadsheet, &cell_variable, &mut variables);
+            parse_scalar_variable_with_deps(
+                spreadsheet,
+                &cell_variable,
+                &mut variables,
+                &mut dependencies,
+            );
         }
     }
-    variables
+    (variables, dependencies)
 }
 
-fn parse_range_variable(
+fn parse_range_variable_with_deps(
     spreadsheet: &Spreadsheet,
     cell_variable: &String,
     variables: &mut HashMap<String, CellArgument>,
+    dependencies: &mut HashSet<CellIdentifier>,
 ) {
     let range: Vec<&str> = cell_variable.split("_").collect();
     let range1 = match CellIdentifier::from_str(range[0]) {
@@ -45,6 +59,8 @@ fn parse_range_variable(
                 row,
                 col: range1.col,
             };
+
+            dependencies.insert(cell_id);
             let value = spreadsheet.get(&cell_id);
             vector_values.push(value);
         }
@@ -60,6 +76,8 @@ fn parse_range_variable(
                 row: range1.row,
                 col,
             };
+
+            dependencies.insert(cell_id);
             let value = spreadsheet.get(&cell_id);
             vector_values.push(value);
         }
@@ -74,6 +92,8 @@ fn parse_range_variable(
             let mut col_values = Vec::new();
             for row in range1.row..=range2.row {
                 let cell_id = CellIdentifier { col, row };
+                dependencies.insert(cell_id);
+
                 let value = spreadsheet.get(&cell_id);
                 col_values.push(value);
             }
@@ -87,10 +107,11 @@ fn parse_range_variable(
     }
 }
 
-fn parse_scalar_variable(
+fn parse_scalar_variable_with_deps(
     spreadsheet: &Spreadsheet,
     cell_variable: &String,
     variables: &mut HashMap<String, CellArgument>,
+    dependencies: &mut HashSet<CellIdentifier>,
 ) {
     let cell_identifier = match CellIdentifier::from_str(cell_variable) {
         Ok(identifier) => identifier,
@@ -98,4 +119,5 @@ fn parse_scalar_variable(
     };
     let val = spreadsheet.get(&cell_identifier);
     variables.insert(cell_variable.to_string(), CellArgument::Value(val));
+    dependencies.insert(cell_identifier);
 }
