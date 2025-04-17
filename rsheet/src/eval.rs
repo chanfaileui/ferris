@@ -1,5 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
+use clap::Error;
+use log::info;
 use rsheet_lib::{cell_expr::CellArgument, cell_value::CellValue, command::CellIdentifier};
 
 use crate::spreadsheet::Spreadsheet;
@@ -46,7 +48,7 @@ fn parse_range_variable(
             let value = spreadsheet.get(&cell_id);
             vector_values.push(value);
         }
-
+        info!("Debug: Vector values: {:?}", vector_values);
         variables.insert(
             cell_variable.to_string(),
             CellArgument::Vector(vector_values),
@@ -61,7 +63,7 @@ fn parse_range_variable(
             let value = spreadsheet.get(&cell_id);
             vector_values.push(value);
         }
-        // log::info!("Debug: Vector values: {:?}", vector_values);
+        info!("Debug: Vector values: {:?}", vector_values);
         variables.insert(
             cell_variable.to_string(),
             CellArgument::Vector(vector_values),
@@ -77,6 +79,7 @@ fn parse_range_variable(
             }
             matrix_values.push(col_values);
         }
+        info!("Debug: Matrix values: {:?}", matrix_values);
         variables.insert(
             cell_variable.to_string(),
             CellArgument::Matrix(matrix_values),
@@ -91,7 +94,7 @@ fn parse_scalar_variable(
 ) {
     let cell_identifier = match CellIdentifier::from_str(cell_variable) {
         Ok(identifier) => identifier,
-        Err(_) => return, // Skip invalid identifiers
+        Err(_) => return,
     };
     let val = spreadsheet.get(&cell_identifier);
     variables.insert(cell_variable.to_string(), CellArgument::Value(val));

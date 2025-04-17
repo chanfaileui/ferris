@@ -1,6 +1,7 @@
 use cell::Cell;
 use eval::parse_variables;
-use rsheet_lib::cell_expr::CellExpr;
+use rsheet_lib::cell_expr::{CellExpr, CellExprEvalError};
+use rsheet_lib::cell_value::CellValue;
 use rsheet_lib::cells::column_number_to_name;
 use rsheet_lib::command::{CellIdentifier, Command};
 use rsheet_lib::connect::{
@@ -59,7 +60,7 @@ where
     W: Writer,
 {
     loop {
-        info!("Just got message");
+        // info!("Just got message");
         match recv.read_message() {
             ReadMessageResult::Message(msg) => {
                 let maybe_reply: Option<Reply> = match msg.parse::<Command>() {
@@ -67,10 +68,33 @@ where
                         Command::Get { cell_identifier } => {
                             let sheet = spreadsheet.read().unwrap();
                             let val = sheet.get(&cell_identifier);
-                            Some(Reply::Value(
-                                cell_identifier_to_string(cell_identifier),
-                                val,
-                            ))
+                            match val {
+                                CellValue::Error(ref e) => {
+                                    // TODO: a bit fragile - Checks if this is a dependency error
+                                    if *e
+                                        == format!(
+                                            "{:?}",
+                                            CellExprEvalError::VariableDependsOnError
+                                        )
+                                    {
+                                        // This is scenario 2 - return just the error
+                                        Some(Reply::Error(e.to_string()))
+                                    } else {
+                                        // This is scenario 1 - return the cell identifier with the error
+                                        Some(Reply::Value(
+                                            cell_identifier_to_string(cell_identifier),
+                                            val,
+                                        ))
+                                    }
+                                }
+                                _ => {
+                                    // For normal values, return the cell identifier and value
+                                    Some(Reply::Value(
+                                        cell_identifier_to_string(cell_identifier),
+                                        val,
+                                    ))
+                                }
+                            }
                         }
                         Command::Set {
                             cell_identifier,
@@ -98,7 +122,13 @@ where
                                     // );
                                     None
                                 }
-                                Err(e) => Some(Reply::Error(format!("Evaluation error: {:?}", e))),
+                                Err(e) => {
+                                    sheet.set(
+                                        cell_identifier,
+                                        Cell::new(CellValue::Error(format!("{:?}", e))),
+                                    );
+                                    None
+                                }
                             }
                         }
                     },
