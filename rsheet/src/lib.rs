@@ -1,6 +1,6 @@
 use cell::Cell;
-use rsheet_lib::cell_expr::{CellArgument, CellExpr};
-use rsheet_lib::cell_value::CellValue;
+use eval::parse_variables;
+use rsheet_lib::cell_expr::CellExpr;
 use rsheet_lib::cells::column_number_to_name;
 use rsheet_lib::command::{CellIdentifier, Command};
 use rsheet_lib::connect::{
@@ -10,7 +10,6 @@ use rsheet_lib::replies::Reply;
 use spreadsheet::Spreadsheet;
 use std::collections::HashMap;
 use std::error::Error;
-use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 use std::thread;
 
@@ -19,6 +18,7 @@ use log::info;
 mod cell;
 #[macro_use]
 mod debug;
+mod eval;
 mod spreadsheet;
 
 pub fn start_server<M>(mut manager: M) -> Result<(), Box<dyn Error>>
@@ -78,79 +78,11 @@ where
                         } => {
                             let cell_expr = CellExpr::new(&cell_expr);
                             let cell_variables = cell_expr.find_variable_names();
-
-                            let mut variables: HashMap<String, CellArgument> = HashMap::new();
-                            if !cell_variables.is_empty() {
-                                let sheet_read = spreadsheet.read().unwrap();
-                                for cell_variable in cell_variables {
-                                    if cell_variable.contains("_") {
-                                        let range: Vec<&str> = cell_variable.split("_").collect();
-                                        let range1 = match CellIdentifier::from_str(range[0]) {
-                                            Ok(identifier) => identifier,
-                                            Err(_) => continue,
-                                        };
-                                        let range2 = match CellIdentifier::from_str(range[1]) {
-                                            Ok(identifier) => identifier,
-                                            Err(_) => continue,
-                                        };
-
-                                        if range1.col == range2.col {
-                                            let mut vector_values: Vec<CellValue> = Vec::new();
-                                            for row in range1.row..=range2.row {
-                                                let cell_id = CellIdentifier {
-                                                    row,
-                                                    col: range1.col,
-                                                };
-                                                let value = sheet_read.get(&cell_id);
-                                                vector_values.push(value);
-                                            }
-
-                                            variables.insert(
-                                                cell_variable,
-                                                CellArgument::Vector(vector_values),
-                                            );
-                                        } else if range1.row == range2.row {
-                                            let mut vector_values = Vec::new();
-                                            for col in range1.col..=range2.col {
-                                                let cell_id = CellIdentifier {
-                                                    row: range1.row,
-                                                    col,
-                                                };
-                                                let value = sheet_read.get(&cell_id);
-                                                vector_values.push(value);
-                                            }
-                                            // log::info!("Debug: Vector values: {:?}", vector_values);
-                                            variables.insert(
-                                                cell_variable,
-                                                CellArgument::Vector(vector_values),
-                                            );
-                                        } else {
-                                            let mut matrix_values: Vec<Vec<CellValue>> = Vec::new();
-                                            for col in range1.col..=range2.col {
-                                                let mut col_values = Vec::new();
-                                                for row in range1.row..=range2.row {
-                                                    let cell_id = CellIdentifier { col, row };
-                                                    let value = sheet_read.get(&cell_id);
-                                                    col_values.push(value);
-                                                }
-                                                matrix_values.push(col_values);
-                                            }
-                                            variables.insert(
-                                                cell_variable,
-                                                CellArgument::Matrix(matrix_values),
-                                            );
-                                        }
-                                    } else {
-                                        let cell_identifier =
-                                            match CellIdentifier::from_str(&cell_variable) {
-                                                Ok(identifier) => identifier,
-                                                Err(_) => continue, // Skip invalid identifiers
-                                            };
-                                        let val = sheet_read.get(&cell_identifier);
-                                        variables.insert(cell_variable, CellArgument::Value(val));
-                                    }
-                                }
-                            }
+                            let variables = if !cell_variables.is_empty() {
+                                parse_variables(&spreadsheet.read().unwrap(), cell_variables)
+                            } else {
+                                HashMap::new()
+                            };
 
                             let mut sheet = spreadsheet.write().unwrap();
                             match cell_expr.evaluate(&variables) {
