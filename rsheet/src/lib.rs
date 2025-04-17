@@ -1,6 +1,7 @@
 use cell::Cell;
 use rsheet_lib::cell_expr::{CellArgument, CellExpr};
-use rsheet_lib::command::Command;
+use rsheet_lib::cells::column_number_to_name;
+use rsheet_lib::command::{CellIdentifier, Command};
 use rsheet_lib::connect::{
     Connection, Manager, ReadMessageResult, Reader, WriteMessageResult, Writer,
 };
@@ -8,6 +9,7 @@ use rsheet_lib::replies::Reply;
 use spreadsheet::Spreadsheet;
 use std::collections::HashMap;
 use std::error::Error;
+use std::fmt::format;
 use std::sync::{Arc, RwLock};
 use std::thread;
 
@@ -62,7 +64,7 @@ where
                         Command::Get { cell_identifier } => {
                             let sheet = spreadsheet.read().unwrap();
                             let val = sheet.get(&cell_identifier);
-                            Some(Reply::Value(format!("{:?}", cell_identifier), val))
+                            Some(Reply::Value(cell_identifier_to_string(cell_identifier), val))
                         }
                         Command::Set {
                             cell_identifier,
@@ -82,7 +84,7 @@ where
                             }
                         }
                     },
-                    Err(e) => Some(Reply::Error(format!("Evaluation error: {:?}", e))),
+                    Err(e) => Some(Reply::Error(format!("Invalid key provided: {:?}", e))),
                 };
 
                 if let Some(reply) = maybe_reply {
@@ -114,4 +116,10 @@ where
         }
     }
     Ok(())
+}
+
+fn cell_identifier_to_string(identifer: CellIdentifier) -> String {
+    let col_name = column_number_to_name(identifer.col);
+    let row_number = identifer.row + 1;
+    format!("{}{}", col_name, row_number)
 }
