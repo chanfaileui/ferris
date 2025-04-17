@@ -10,6 +10,7 @@ use spreadsheet::Spreadsheet;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::format;
+use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 use std::thread;
 
@@ -64,17 +65,33 @@ where
                         Command::Get { cell_identifier } => {
                             let sheet = spreadsheet.read().unwrap();
                             let val = sheet.get(&cell_identifier);
-                            Some(Reply::Value(cell_identifier_to_string(cell_identifier), val))
+                            Some(Reply::Value(
+                                cell_identifier_to_string(cell_identifier),
+                                val,
+                            ))
                         }
                         Command::Set {
                             cell_identifier,
                             cell_expr,
                         } => {
-                            let mut sheet = spreadsheet.write().unwrap();
                             let cell_expr = CellExpr::new(&cell_expr);
+                            let cell_variables = cell_expr.find_variable_names();
 
-                            let variables: HashMap<String, CellArgument> = HashMap::new();
+                            let mut variables: HashMap<String, CellArgument> = HashMap::new();
+                            if !cell_variables.is_empty() {
+                                let sheet_read = spreadsheet.read().unwrap();
+                                for cell_variable in cell_variables {
+                                    let cell_identifier =
+                                        match CellIdentifier::from_str(&cell_variable) {
+                                            Ok(identifier) => identifier,
+                                            Err(_) => continue, // Skip invalid identifiers
+                                        };
+                                    let val = sheet_read.get(&cell_identifier);
+                                    variables.insert(cell_variable, CellArgument::Value(val));
+                                }
+                            }
 
+                            let mut sheet = spreadsheet.write().unwrap();
                             match cell_expr.evaluate(&variables) {
                                 Ok(value) => {
                                     sheet.set(cell_identifier, Cell::new(value));
