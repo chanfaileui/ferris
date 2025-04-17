@@ -26,18 +26,24 @@ where
     M: Manager,
 {
     let spreadsheet = Arc::new(RwLock::new(Spreadsheet::new()));
+    let mut handles = Vec::new();
 
     loop {
         match manager.accept_new_connection() {
             Connection::NewConnection { reader, writer } => {
                 let spreadsheet_clone = Arc::clone(&spreadsheet);
-                thread::spawn(move || {
+                let handle = thread::spawn(move || {
                     if let Err(e) = handle_connection(reader, writer, spreadsheet_clone) {
                         eprintln!("Error in connection handler: {}", e);
                     }
-                })
+                });
+                handles.push(handle);
             }
             Connection::NoMoreConnections => {
+                // Wait for all worker threads to complete before exiting
+                for handle in handles {
+                    let _ = handle.join();
+                }
                 // There are no more new connections to accept.
                 return Ok(());
             }
