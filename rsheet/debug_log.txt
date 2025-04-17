@@ -1,0 +1,4 @@
+Range: A1_A2, values: [Int(1)]
+cell_variable: "A1_A2"
+vector_values: [Int(1)]
+range1: CellIdentifier { col: 0, row: 0 }
