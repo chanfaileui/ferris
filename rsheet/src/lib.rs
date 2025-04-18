@@ -85,6 +85,11 @@ where
                 let maybe_reply: Option<Reply> = match msg.parse::<Command>() {
                     Ok(command) => match command {
                         Command::Get { cell_identifier } => {
+                            // {
+                            //     // temporarily acquire write lock to ensure all writes are processed
+                            //     let _lock = spreadsheet.write().unwrap();
+                            // }
+
                             let sheet = spreadsheet.read().unwrap();
                             let val = sheet.get_value(&cell_identifier);
                             match val {
@@ -129,18 +134,21 @@ where
                                 (HashMap::new(), HashSet::new())
                             };
 
-                            let mut sheet = spreadsheet.write().unwrap();
-                            match cell_expr_obj.evaluate(&variables) {
-                                Ok(value) => {
-                                    sheet.set(cell_identifier, Cell::new(&value));
-                                    let cell = Cell::new_with_expr(cell_expr, value);
-                                    sheet.evaluate_cell(cell_identifier, cell, dependencies);
-                                }
-                                Err(e) => {
-                                    sheet.set(
-                                        cell_identifier,
-                                        Cell::new(&CellValue::Error(format!("{:?}", e))),
-                                    );
+                            let result = cell_expr_obj.evaluate(&variables);
+                            {
+                                let mut sheet = spreadsheet.write().unwrap();
+                                match result {
+                                    Ok(value) => {
+                                        sheet.set(cell_identifier, Cell::new(&value));
+                                        let cell = Cell::new_with_expr(cell_expr, value);
+                                        sheet.evaluate_cell(cell_identifier, cell, dependencies);
+                                    }
+                                    Err(e) => {
+                                        sheet.set(
+                                            cell_identifier,
+                                            Cell::new(&CellValue::Error(format!("{:?}", e))),
+                                        );
+                                    }
                                 }
                             }
                             tx.send(UpdateMessage {
