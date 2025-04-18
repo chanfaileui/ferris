@@ -3,9 +3,8 @@ use std::{
     str::FromStr,
 };
 
-use rsheet_lib::{cell_expr::CellArgument, cell_value::CellValue, command::CellIdentifier};
-
 use crate::spreadsheet::Spreadsheet;
+use rsheet_lib::{cell_expr::CellArgument, cell_value::CellValue, command::CellIdentifier};
 
 // Extract this into a helper function
 pub fn parse_variables_with_deps(
@@ -15,7 +14,7 @@ pub fn parse_variables_with_deps(
     let mut variables: HashMap<String, CellArgument> = HashMap::new();
     let mut dependencies: HashSet<CellIdentifier> = HashSet::new();
 
-    for cell_variable in cell_variables {
+    cell_variables.into_iter().for_each(|cell_variable| {
         if cell_variable.contains('_') {
             parse_range_variable_with_deps(
                 spreadsheet,
@@ -31,7 +30,7 @@ pub fn parse_variables_with_deps(
                 &mut dependencies,
             );
         }
-    }
+    });
     (variables, dependencies)
 }
 

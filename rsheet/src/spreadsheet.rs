@@ -45,10 +45,6 @@ impl Spreadsheet {
         self.cells.insert(cell_identifier, cell);
     }
 
-    pub fn cell_exists(&self, cell: &CellIdentifier) -> bool {
-        self.cells.contains_key(cell)
-    }
-
     pub fn evaluate_cell(
         &mut self,
         cell_id: CellIdentifier,
