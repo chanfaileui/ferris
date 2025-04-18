@@ -3,7 +3,6 @@ use std::{
     str::FromStr,
 };
 
-use log::info;
 use rsheet_lib::{cell_expr::CellArgument, cell_value::CellValue, command::CellIdentifier};
 
 use crate::spreadsheet::Spreadsheet;
@@ -43,63 +42,42 @@ fn parse_range_variable_with_deps(
     dependencies: &mut HashSet<CellIdentifier>,
 ) {
     let range: Vec<&str> = cell_variable.split("_").collect();
-    let range1 = match CellIdentifier::from_str(range[0]) {
-        Ok(identifier) => identifier,
-        Err(_) => return,
+    let (range1, range2) = match (
+        CellIdentifier::from_str(range[0]),
+        CellIdentifier::from_str(range[1]),
+    ) {
+        (Ok(r1), Ok(r2)) => (r1, r2),
+        _ => return,
     };
-    let range2 = match CellIdentifier::from_str(range[1]) {
-        Ok(identifier) => identifier,
-        Err(_) => return,
+
+    let mut collect_values = |rows: std::ops::RangeInclusive<u32>,
+                              cols: std::ops::RangeInclusive<u32>|
+     -> Vec<CellValue> {
+        let mut values = Vec::new();
+        for row in rows {
+            for col in cols.clone() {
+                let cell_id = CellIdentifier { row, col };
+                dependencies.insert(cell_id);
+                values.push(spreadsheet.get_value(&cell_id));
+            }
+        }
+        values
     };
 
     if range1.col == range2.col {
-        let mut vector_values: Vec<CellValue> = Vec::new();
-        for row in range1.row..=range2.row {
-            let cell_id = CellIdentifier {
-                row,
-                col: range1.col,
-            };
-
-            dependencies.insert(cell_id);
-            let value = spreadsheet.get_value(&cell_id);
-            vector_values.push(value);
-        }
-        info!("Debug: Vector values: {:?}", vector_values);
-        variables.insert(
-            cell_variable.to_string(),
-            CellArgument::Vector(vector_values),
-        );
+        // Vertical column
+        let values = collect_values(range1.row..=range2.row, range1.col..=range1.col);
+        variables.insert(cell_variable.to_string(), CellArgument::Vector(values));
     } else if range1.row == range2.row {
-        let mut vector_values = Vec::new();
-        for col in range1.col..=range2.col {
-            let cell_id = CellIdentifier {
-                row: range1.row,
-                col,
-            };
-
-            dependencies.insert(cell_id);
-            let value = spreadsheet.get_value(&cell_id);
-            vector_values.push(value);
-        }
-        info!("Debug: Vector values: {:?}", vector_values);
-        variables.insert(
-            cell_variable.to_string(),
-            CellArgument::Vector(vector_values),
-        );
+        // Horizontal row
+        let values = collect_values(range1.row..=range1.row, range1.col..=range2.col);
+        variables.insert(cell_variable.to_string(), CellArgument::Vector(values));
     } else {
         let mut matrix_values: Vec<Vec<CellValue>> = Vec::new();
-        for col in range1.col..=range2.col {
-            let mut col_values = Vec::new();
-            for row in range1.row..=range2.row {
-                let cell_id = CellIdentifier { col, row };
-                dependencies.insert(cell_id);
-
-                let value = spreadsheet.get_value(&cell_id);
-                col_values.push(value);
-            }
-            matrix_values.push(col_values);
+        for row in range1.row..=range2.row {
+            let row_values = collect_values(row..=row, range1.col..=range2.col);
+            matrix_values.push(row_values);
         }
-        info!("Debug: Matrix values: {:?}", matrix_values);
         variables.insert(
             cell_variable.to_string(),
             CellArgument::Matrix(matrix_values),

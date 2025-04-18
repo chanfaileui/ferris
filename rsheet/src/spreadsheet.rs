@@ -1,9 +1,7 @@
 use rsheet_lib::{cell_expr, cell_value::CellValue, command::CellIdentifier};
 
-use crate::{cell::Cell, eval::parse_variables_with_deps, UpdateMessage};
+use crate::{cell::Cell, eval::parse_variables_with_deps};
 use std::collections::{HashMap, HashSet};
-
-use log::info;
 
 pub struct Spreadsheet {
     // cells themselves (Hashmap, key: value)
