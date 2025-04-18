@@ -61,7 +61,7 @@ fn parse_range_variable_with_deps(
             };
 
             dependencies.insert(cell_id);
-            let value = spreadsheet.get(&cell_id);
+            let value = spreadsheet.get_value(&cell_id);
             vector_values.push(value);
         }
         info!("Debug: Vector values: {:?}", vector_values);
@@ -78,7 +78,7 @@ fn parse_range_variable_with_deps(
             };
 
             dependencies.insert(cell_id);
-            let value = spreadsheet.get(&cell_id);
+            let value = spreadsheet.get_value(&cell_id);
             vector_values.push(value);
         }
         info!("Debug: Vector values: {:?}", vector_values);
@@ -94,7 +94,7 @@ fn parse_range_variable_with_deps(
                 let cell_id = CellIdentifier { col, row };
                 dependencies.insert(cell_id);
 
-                let value = spreadsheet.get(&cell_id);
+                let value = spreadsheet.get_value(&cell_id);
                 col_values.push(value);
             }
             matrix_values.push(col_values);
@@ -117,7 +117,7 @@ fn parse_scalar_variable_with_deps(
         Ok(identifier) => identifier,
         Err(_) => return,
     };
-    let val = spreadsheet.get(&cell_identifier);
+    let val = spreadsheet.get_value(&cell_identifier);
     variables.insert(cell_variable.to_string(), CellArgument::Value(val));
     dependencies.insert(cell_identifier);
 }

@@ -1,6 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use rsheet_lib::cell_value::CellValue;
+use rsheet_lib::{cell_expr::CellExpr, cell_value::CellValue};
 
 pub struct Cell {
     expr: Option<String>, // have to call CellExpr to evaluate
@@ -37,6 +37,10 @@ impl Cell {
 
     pub fn expr(&self) -> Option<&String> {
         self.expr.as_ref()
+    }
+
+    pub fn get_cell_expr(&self) -> Option<CellExpr> {
+        self.expr.as_deref().map(CellExpr::new)
     }
 
     pub fn timestamp(&self) -> &u64 {

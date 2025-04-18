@@ -11,7 +11,7 @@ use rsheet_lib::replies::Reply;
 use spreadsheet::Spreadsheet;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
-use std::sync::{Arc, RwLock};
+use std::sync::{mpsc, Arc, RwLock};
 use std::thread;
 
 use log::info;
@@ -20,19 +20,35 @@ mod cell;
 mod eval;
 mod spreadsheet;
 
+pub struct UpdateMessage {
+    cell_id: CellIdentifier,
+}
+
 pub fn start_server<M>(mut manager: M) -> Result<(), Box<dyn Error>>
 where
     M: Manager,
 {
     let spreadsheet = Arc::new(RwLock::new(Spreadsheet::new()));
+    let (tx, rx) = mpsc::channel::<UpdateMessage>();
     let mut handles = Vec::new();
+
+    // Spawn a thread to handle the spreadsheet updates
+    let worker_spreadsheet = Arc::clone(&spreadsheet);
+    let worker_handle = thread::spawn(move || {
+        while let Ok(update_msg) = rx.recv() {
+            if let Ok(mut spreadsheet) = worker_spreadsheet.write() {
+                Spreadsheet::update_dependencies(&mut spreadsheet, update_msg.cell_id);
+            }
+        }
+    });
 
     loop {
         match manager.accept_new_connection() {
             Connection::NewConnection { reader, writer } => {
                 let spreadsheet_clone = Arc::clone(&spreadsheet);
+                let tx_clone = tx.clone();
                 let handle = thread::spawn(move || {
-                    if let Err(e) = handle_connection(reader, writer, spreadsheet_clone) {
+                    if let Err(e) = handle_connection(reader, writer, spreadsheet_clone, tx_clone) {
                         eprintln!("Error in connection handler: {}", e);
                     }
                 });
@@ -43,6 +59,8 @@ where
                 for handle in handles {
                     let _ = handle.join();
                 }
+                drop(tx);
+                let _ = worker_handle.join();
                 // There are no more new connections to accept.
                 return Ok(());
             }
@@ -54,6 +72,7 @@ pub fn handle_connection<R, W>(
     mut recv: R,
     mut send: W,
     spreadsheet: Arc<RwLock<Spreadsheet>>,
+    tx: mpsc::Sender<UpdateMessage>,
 ) -> Result<(), Box<dyn Error>>
 where
     R: Reader,
@@ -67,7 +86,7 @@ where
                     Ok(command) => match command {
                         Command::Get { cell_identifier } => {
                             let sheet = spreadsheet.read().unwrap();
-                            let val = sheet.get(&cell_identifier);
+                            let val = sheet.get_value(&cell_identifier);
                             match val {
                                 CellValue::Error(ref e) => {
                                     // TODO: a bit fragile - Checks if this is a dependency error
@@ -116,16 +135,18 @@ where
                                     sheet.set(cell_identifier, Cell::new(&value));
                                     let cell = Cell::new_with_expr(cell_expr, value);
                                     sheet.evaluate_cell(cell_identifier, cell, dependencies);
-                                    None
                                 }
                                 Err(e) => {
                                     sheet.set(
                                         cell_identifier,
                                         Cell::new(&CellValue::Error(format!("{:?}", e))),
                                     );
-                                    None
                                 }
                             }
+                            tx.send(UpdateMessage {
+                                cell_id: cell_identifier,
+                            })?;
+                            None
                         }
                     },
                     Err(e) => Some(Reply::Error(format!("Invalid key provided: {:?}", e))),
