@@ -6,9 +6,7 @@ use std::{
 use crate::spreadsheet::Spreadsheet;
 use rsheet_lib::{cell_expr::CellArgument, cell_value::CellValue, command::CellIdentifier};
 
-/**
-Parses variables and their dependencies from the given cell variables.
-*/
+/// Parses variables and their dependencies from the given cell variables.
 pub fn parse_variables_with_deps(
     spreadsheet: &Spreadsheet,
     cell_variables: Vec<String>,

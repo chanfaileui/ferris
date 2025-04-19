@@ -21,12 +21,12 @@ to receive marks for the Design Questions.
 ## Question 2:
     The three lines where I handle the different variable types are:
 
-    - Scalar variables: src/eval.rs:70-83 in parse_scalar_variable_with_deps function
-    - Vector variables: src/eval.rs:48-53 in parse_range_variable_with_deps when handling horizontal/vertical ranges
-    - Matrix variables: src/eval.rs:55-65 in parse_range_variable_with_deps when handling rectangular ranges
+    - Scalar variables: src/eval.rs:87-103 in parse_scalar_variable_with_deps function
+    - Vector variables: src/eval.rs:66-73 in parse_range_variable_with_deps when handling horizontal/vertical ranges
+    - Matrix variables: src/eval.rs:75-83 in parse_range_variable_with_deps when handling rectangular ranges
 
     Previously I identified there was a lot of repeating code when processing rows and column, so I extracted common parsing logic 
-    into a `collect_values` closure at src/eval.rs:29-40. Closures can capture the external variables like the 
+    into a `collect_values` closure at src/eval.rs:52-63. Closures can capture the external variables like the 
     "dependencies" HashSet so I don't have to specifically pass it to each closure. 
 
     For a MatrixList type, I would need to extend the `CellArgument` enum with a new `MatrixList` variant then add a new parsing 
@@ -35,20 +35,20 @@ to receive marks for the Design Questions.
     the existing code structure.
 
 ## Question 3:
-    `let spreadsheet = Arc::new(RwLock::new(Spreadsheet::new()));` at `src/lib.rs:33`
+    `let spreadsheet = Arc::new(RwLock::new(Spreadsheet::new()));` at `src/lib.rs:38`
     I create a thread-safe reference-counted pointer (Arc) with reader-writer locks (RwLock). Without this, threads trying to access 
     the spreadsheet simultaneously would cause data races. The Rust compiler prevents sharing the spreadsheet across threads without 
     this synchronisation because the spreadsheet doesn’t implement Send and Sync. Threads have to acquire proper read/write locks 
     before accessing shared data, ensuring data consistency.
 
-    `let (tx, rx) = mpsc::channel::<UpdateMessage>();` at `src/lib.rs:34`
+    `let (tx, rx) = mpsc::channel::<UpdateMessage>();` at `src/lib.rs:39`
     I create a multi-producer, single-consumer (mpsc) channel which safely passes messages between threads. Without it, threads will 
     have to resort to mutating the spreadsheet for any dependency updates, which could lead to deadlocks or race conditions. Rust’s 
     ownership system guarantees the safety of channel message-passing as only one thread can receive each message, preventing 
     concurrent access to the same memory, avoiding race conditions.
 
 ## Question 4:
-    I handle the complex edge case in src/spreadsheet.rs:159-166:
+    I handle the complex edge case in src/spreadsheet.rs:96-103:
 
     ```rust
     if existing_cell.timestamp() > new_cell.timestamp() {
@@ -60,22 +60,22 @@ to receive marks for the Design Questions.
     ```
 
     The solution prevents older evaluations from overwriting newer ones by comparing timestamps. On creation, each cell stores its 
-    update time in the Cell struct (src/cell.rs:23-29). When a slow evaluation completes, before applying any update, it checks if 
+    update time in the Cell struct (src/cell.rs:11-25). When a slow evaluation completes, before applying any update, it checks if 
     a newer update has already happened before applying changes, ensuring that more recent updates always take precedence. This 
     ensures slower updates don’t overwrite newer updates.
 
 ## Question 5:
     When set A1 7 is processed:
 
-    1. Command thread parses and evaluates expression (src/lib.rs:68-103)
-    2. Updates A1 with write lock (src/lib.rs:96-99)
-    3. Sends UpdateMessage through channel (src/lib.rs:106-108)
-    4. Worker thread receives message (src/lib.rs:41)
-    5. Worker calls update_dependencies (src/lib.rs:43)
-    6. Spreadsheet finds B1 depends on A1 (src/spreadsheet.rs:122-140)
-    7. Reevaluates B1 and updates it (src/spreadsheet.rs:144-168)
-    8. Adds B1 to update queue (src/spreadsheet.rs:171)
-    9. Process repeats for C1 which depends on B1
+    1. Command thread parses and evaluates expression (src/lib.rs:132-141)
+    2. Updates A1 with write lock (src/lib.rs:142-161)
+    3. Sends UpdateMessage through channel (src/lib.rs:162-164)
+    4. Worker thread receives message (src/lib.rs:45)
+    5. Worker calls update_dependencies (src/lib.rs:47)
+    6. Spreadsheet finds B1 depends on A1 (src/spreadsheet.rs:80)
+    7. Reevaluates B1 and updates it (src/spreadsheet.rs:91-103)
+    8. Adds B1 to update queue (src/spreadsheet.rs:105)
+    9. Process repeats for C1 which depends on B1 (src/spreadsheet.rs:107, 74)
 
     Data passes between threads exclusively through the channel. This ensures dependencies process in the correct order without 
     blocking the command thread.
