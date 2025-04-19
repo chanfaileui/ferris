@@ -6,15 +6,13 @@ These questions are listed in the spec, and you must fill them out
 to receive marks for the Design Questions.
 
 ## Question 1:
-    - Worse. Direct string parsing is very tedious and error-prone as you’d need multiple string manipulations and you’d have to 
-    handle each command type (get/set) separately with custom parsing logic leading to lots of repetitive parsing logic. You would 
-    lose the clean separation of commands with Command as you would mix parsing logic with execution logic.
+    - Worse. Direct string parsing is tedious and error-prone requiring multiple string manipulations and lots of repetitive parsing 
+    logic. You would have to handle each command type separately with custom parsing logic and you also lose the current separation 
+    of concerns with Command by mixing parsing logic with execution logic.
 
-    - Slightly worse. They're functionally equivalent, msg.parse::<Command>() uses FromStr under the hood, you can easily write a 
-    parse function with the same arguments. However, you lose integration with Rust’s standard parsing patterns. FromStr is a 
-    standard Rust trait that provides automatic string-to-type conversion with consistent error-handling, which naturally integrates
-    with the language's type system. It provides a more familiar interface for other Rust developers, so you should strive to use 
-    FromStr.
+    - Slightly worse. Although functionally equivalent, msg.parse::<Command>() uses FromStr under the hood, which integrates cleanly 
+    with Rust’s parsing patterns. Writing a custom parse function is possible, but FromStr provides consistent error handling and 
+    aligns better with Rust’s type system, providing a more familiar interface for other Rust developers.
 
     - Worse. You would need GetCommand and SetCommand to implement a common Command trait to parse, which adds unnecessary code and 
     complexity. if not, you'll have to handle each type separately, which is much less elegant compared to the current design which 
@@ -28,7 +26,7 @@ to receive marks for the Design Questions.
     - Matrix variables: src/eval.rs:55-65 in parse_range_variable_with_deps when handling rectangular ranges
 
     Previously I identified there was a lot of repeating code when processing rows and column, so I extracted common parsing logic 
-    into a `collect_values` closure at src/eval.rs:29-40. The power of closures is that they capture the external variables like the 
+    into a `collect_values` closure at src/eval.rs:29-40. Closures can capture the external variables like the 
     "dependencies" HashSet so I don't have to specifically pass it to each closure. 
 
     For a MatrixList type, I would need to extend the `CellArgument` enum with a new `MatrixList` variant then add a new parsing 
