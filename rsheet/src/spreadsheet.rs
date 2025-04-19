@@ -28,10 +28,7 @@ impl Spreadsheet {
     }
 
     pub fn get(&self, cell: &CellIdentifier) -> Option<&Cell> {
-        match self.cells.get(cell) {
-            Some(cell) => Some(cell),
-            None => None,
-        }
+        self.cells.get(cell)
     }
 
     pub fn get_value(&self, cell: &CellIdentifier) -> CellValue {

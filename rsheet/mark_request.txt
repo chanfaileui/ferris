@@ -6,81 +6,81 @@ These questions are listed in the spec, and you must fill them out
 to receive marks for the Design Questions.
 
 ## Question 1:
-- Worse. Direct string parsing is very tedious and error-prone as you’d need multiple string manipulations and you’d have to 
-handle each command type (get/set) separately with custom parsing logic leading to lots of repetitive parsing logic. You would 
-lose the clean separation of commands with Command as you would mix parsing logic with execution logic.
+    - Worse. Direct string parsing is very tedious and error-prone as you’d need multiple string manipulations and you’d have to 
+    handle each command type (get/set) separately with custom parsing logic leading to lots of repetitive parsing logic. You would 
+    lose the clean separation of commands with Command as you would mix parsing logic with execution logic.
 
-- Slightly worse. They're functionally equivalent, msg.parse::<Command>() uses FromStr under the hood, you can easily write a 
-parse function with the same arguments. However, you lose integration with Rust’s standard parsing patterns. FromStr is a 
-standard Rust trait that provides automatic string-to-type conversion with consistent error-handling, which naturally integrates
-with the language's type system. It provides a more familiar interface for other Rust developers, so you should strive to use 
-FromStr.
+    - Slightly worse. They're functionally equivalent, msg.parse::<Command>() uses FromStr under the hood, you can easily write a 
+    parse function with the same arguments. However, you lose integration with Rust’s standard parsing patterns. FromStr is a 
+    standard Rust trait that provides automatic string-to-type conversion with consistent error-handling, which naturally integrates
+    with the language's type system. It provides a more familiar interface for other Rust developers, so you should strive to use 
+    FromStr.
 
-- Worse. You would need GetCommand and SetCommand to implement a common Command trait to parse, which adds unnecessary code and 
-complexity. if not, you'll have to handle each type separately, which is much less elegant compared to the current design which 
-leverages Rust's strong enum capabilities for safe, concise code.
+    - Worse. You would need GetCommand and SetCommand to implement a common Command trait to parse, which adds unnecessary code and 
+    complexity. if not, you'll have to handle each type separately, which is much less elegant compared to the current design which 
+    leverages Rust's strong enum capabilities for safe, concise code.
 
 ## Question 2:
-The three lines where I handle the different variable types are:
+    The three lines where I handle the different variable types are:
 
-- Scalar variables: src/eval.rs:70-83 in parse_scalar_variable_with_deps function
-- Vector variables: src/eval.rs:48-53 in parse_range_variable_with_deps when handling horizontal/vertical ranges
-- Matrix variables: src/eval.rs:55-65 in parse_range_variable_with_deps when handling rectangular ranges
+    - Scalar variables: src/eval.rs:70-83 in parse_scalar_variable_with_deps function
+    - Vector variables: src/eval.rs:48-53 in parse_range_variable_with_deps when handling horizontal/vertical ranges
+    - Matrix variables: src/eval.rs:55-65 in parse_range_variable_with_deps when handling rectangular ranges
 
-Previously I identified there was a lot of repeating code when processing rows and column, so I extracted common parsing logic 
-into a `collect_values` closure at src/eval.rs:29-40. The power of closures is that they capture the external variables like the 
-"dependencies" HashSet so I don't have to specifically pass it to each closure. 
+    Previously I identified there was a lot of repeating code when processing rows and column, so I extracted common parsing logic 
+    into a `collect_values` closure at src/eval.rs:29-40. The power of closures is that they capture the external variables like the 
+    "dependencies" HashSet so I don't have to specifically pass it to each closure. 
 
-For a MatrixList type, I would need to extend the `CellArgument` enum with a new `MatrixList` variant then add a new parsing 
-function in eval.rs that recognises the syntax for `MatrixList` . Then I’d create a new matching function in 
-`parse_variables_with_deps` that would call the existing matrix logic multiple times for each matrix in the list, making use of 
-the existing code structure.
+    For a MatrixList type, I would need to extend the `CellArgument` enum with a new `MatrixList` variant then add a new parsing 
+    function in eval.rs that recognises the syntax for `MatrixList` . Then I’d create a new matching function in 
+    `parse_variables_with_deps` that would call the existing matrix logic multiple times for each matrix in the list, making use of 
+    the existing code structure.
 
 ## Question 3:
-`let spreadsheet = Arc::new(RwLock::new(Spreadsheet::new()));` at `src/lib.rs:33`
-I create a thread-safe reference-counted pointer (Arc) with reader-writer locks (RwLock). Without this, threads trying to access 
-the spreadsheet simultaneously would cause data races. The Rust compiler prevents sharing the spreadsheet across threads without 
-this synchronisation because the spreadsheet doesn’t implement Send and Sync. Threads have to acquire proper read/write locks 
-before accessing shared data, ensuring data consistency.
+    `let spreadsheet = Arc::new(RwLock::new(Spreadsheet::new()));` at `src/lib.rs:33`
+    I create a thread-safe reference-counted pointer (Arc) with reader-writer locks (RwLock). Without this, threads trying to access 
+    the spreadsheet simultaneously would cause data races. The Rust compiler prevents sharing the spreadsheet across threads without 
+    this synchronisation because the spreadsheet doesn’t implement Send and Sync. Threads have to acquire proper read/write locks 
+    before accessing shared data, ensuring data consistency.
 
-`let (tx, rx) = mpsc::channel::<UpdateMessage>();` at `src/lib.rs:34`
-I create a multi-producer, single-consumer (mpsc) channel which safely passes messages between threads. Without it, threads will 
-have to resort to mutating the spreadsheet for any dependency updates, which could lead to deadlocks or race conditions. Rust’s 
-ownership system guarantees the safety of channel message-passing as only one thread can receive each message, preventing 
-concurrent access to the same memory, avoiding race conditions.
+    `let (tx, rx) = mpsc::channel::<UpdateMessage>();` at `src/lib.rs:34`
+    I create a multi-producer, single-consumer (mpsc) channel which safely passes messages between threads. Without it, threads will 
+    have to resort to mutating the spreadsheet for any dependency updates, which could lead to deadlocks or race conditions. Rust’s 
+    ownership system guarantees the safety of channel message-passing as only one thread can receive each message, preventing 
+    concurrent access to the same memory, avoiding race conditions.
 
 ## Question 4:
-I handle the complex edge case in src/spreadsheet.rs:159-166:
+    I handle the complex edge case in src/spreadsheet.rs:159-166:
 
-```rust
-if existing_cell.timestamp() > new_cell.timestamp() {
+    ```rust
+    if existing_cell.timestamp() > new_cell.timestamp() {
 
-// Existing cell is newer, don't update*
+    // Existing cell is newer, don't update*
 
-continue;
-    }
-```
+    continue;
+        }
+    ```
 
-The solution prevents older evaluations from overwriting newer ones by comparing timestamps. On creation, each cell stores its 
-update time in the Cell struct (src/cell.rs:23-29). When a slow evaluation completes, before applying any update, it checks if 
-a newer update has already happened before applying changes, ensuring that more recent updates always take precedence. This 
-ensures slower updates don’t overwrite newer updates.
+    The solution prevents older evaluations from overwriting newer ones by comparing timestamps. On creation, each cell stores its 
+    update time in the Cell struct (src/cell.rs:23-29). When a slow evaluation completes, before applying any update, it checks if 
+    a newer update has already happened before applying changes, ensuring that more recent updates always take precedence. This 
+    ensures slower updates don’t overwrite newer updates.
 
 ## Question 5:
-When set A1 7 is processed:
+    When set A1 7 is processed:
 
-1. Command thread parses and evaluates expression (src/lib.rs:68-103)
-2. Updates A1 with write lock (src/lib.rs:96-99)
-3. Sends UpdateMessage through channel (src/lib.rs:106-108)
-4. Worker thread receives message (src/lib.rs:41)
-5. Worker calls update_dependencies (src/lib.rs:43)
-6. Spreadsheet finds B1 depends on A1 (src/spreadsheet.rs:122-140)
-7. Reevaluates B1 and updates it (src/spreadsheet.rs:144-168)
-8. Adds B1 to update queue (src/spreadsheet.rs:171)
-9. Process repeats for C1 which depends on B1
+    1. Command thread parses and evaluates expression (src/lib.rs:68-103)
+    2. Updates A1 with write lock (src/lib.rs:96-99)
+    3. Sends UpdateMessage through channel (src/lib.rs:106-108)
+    4. Worker thread receives message (src/lib.rs:41)
+    5. Worker calls update_dependencies (src/lib.rs:43)
+    6. Spreadsheet finds B1 depends on A1 (src/spreadsheet.rs:122-140)
+    7. Reevaluates B1 and updates it (src/spreadsheet.rs:144-168)
+    8. Adds B1 to update queue (src/spreadsheet.rs:171)
+    9. Process repeats for C1 which depends on B1
 
-Data passes between threads exclusively through the channel. This ensures dependencies process in the correct order without 
-blocking the command thread.
+    Data passes between threads exclusively through the channel. This ensures dependencies process in the correct order without 
+    blocking the command thread.
 
 # Questions to the Marker (OPTIONAL)
 
@@ -88,7 +88,10 @@ Remember: you don't have to fill these out; but if
 you want to get feedback on a particular element of
 your code; you can!
 
-1.
+1. 
+    For dependency tracking I considered using topological sorting with a dependency graph but I thought that was a bit overkill 
+    for the assignment. My current approach is a iterative queue-based system which I know wouldn't handle very complex dependencies
+    well, is there a middle ground between the two approaches?
 
 2.
 

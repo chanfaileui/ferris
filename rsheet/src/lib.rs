@@ -1,6 +1,9 @@
+//! This module provides a server for a spreadsheet application.
+//! It handles connections, evaluates cell expressions, and manages dependencies.
+//!
 use cell::Cell;
 use eval::parse_variables_with_deps;
-use rsheet_lib::cell_expr::{CellExpr, CellExprEvalError};
+use rsheet_lib::cell_expr::CellExpr;
 use rsheet_lib::cell_value::CellValue;
 use rsheet_lib::cells::column_number_to_name;
 use rsheet_lib::command::{CellIdentifier, Command};
@@ -20,12 +23,14 @@ mod cell;
 mod eval;
 mod spreadsheet;
 
+/// A message sent to the worker thread to update dependencies.
 pub struct UpdateMessage {
     cell_id: CellIdentifier,
 }
 
 const DEPENDENCY_ERROR_MARKER: &str = "CELL_DEPENDENCY_ERROR";
 
+/// Starts the server and accepts new connections.
 pub fn start_server<M>(mut manager: M) -> Result<(), Box<dyn Error>>
 where
     M: Manager,
@@ -59,10 +64,14 @@ where
             Connection::NoMoreConnections => {
                 // Wait for all worker threads to complete before exiting
                 for handle in handles {
-                    let _ = handle.join();
+                    if let Err(e) = handle.join() {
+                        eprintln!("Error joining thread: {:?}", e);
+                    }
                 }
                 drop(tx);
-                let _ = worker_handle.join();
+                if let Err(e) = worker_handle.join() {
+                    eprintln!("Error joining worker thread: {:?}", e);
+                }
                 // There are no more new connections to accept.
                 return Ok(());
             }
@@ -70,6 +79,7 @@ where
     }
 }
 
+/// Handles a single connection to the server.
 pub fn handle_connection<R, W>(
     mut recv: R,
     mut send: W,
@@ -189,6 +199,7 @@ where
     Ok(())
 }
 
+/// Converts a CellIdentifier to a string representation (e.g., "A1").
 fn cell_identifier_to_string(identifer: CellIdentifier) -> String {
     let col_name = column_number_to_name(identifer.col);
     let row_number = identifer.row + 1;

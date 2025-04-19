@@ -6,7 +6,9 @@ use std::{
 use crate::spreadsheet::Spreadsheet;
 use rsheet_lib::{cell_expr::CellArgument, cell_value::CellValue, command::CellIdentifier};
 
-// Extract this into a helper function
+/**
+Parses variables and their dependencies from the given cell variables.
+*/
 pub fn parse_variables_with_deps(
     spreadsheet: &Spreadsheet,
     cell_variables: Vec<String>,
@@ -92,7 +94,10 @@ fn parse_scalar_variable_with_deps(
 ) {
     let cell_identifier = match CellIdentifier::from_str(cell_variable) {
         Ok(identifier) => identifier,
-        Err(_) => return,
+        Err(e) => {
+            log::debug!("Invalid cell identifier '{}': {}", cell_variable, e);
+            return;
+        }
     };
     let val = spreadsheet.get_value(&cell_identifier);
     variables.insert(cell_variable.to_string(), CellArgument::Value(val));

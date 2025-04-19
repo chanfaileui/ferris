@@ -2,7 +2,7 @@ use rsheet_lib::{cell_expr::CellExpr, cell_value::CellValue};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct Cell {
-    expr: Option<String>, // have to call CellExpr to evaluate
+    expr: Option<String>, // Use CellExpr to evaluate
     value: CellValue,
     timestamp: u64, // used to prevent older updates overwriting newer ones
 }
