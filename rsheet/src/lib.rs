@@ -24,6 +24,8 @@ pub struct UpdateMessage {
     cell_id: CellIdentifier,
 }
 
+const DEPENDENCY_ERROR_MARKER: &str = "CELL_DEPENDENCY_ERROR";
+
 pub fn start_server<M>(mut manager: M) -> Result<(), Box<dyn Error>>
 where
     M: Manager,
@@ -91,13 +93,8 @@ where
                             let val = sheet.get_value(&cell_identifier);
                             match val {
                                 CellValue::Error(ref e) => {
-                                    // TODO: a bit fragile - Checks if this is a dependency error
-                                    if *e
-                                        == format!(
-                                            "{:?}",
-                                            CellExprEvalError::VariableDependsOnError
-                                        )
-                                    {
+                                    // Checks if this is a dependency error
+                                    if e == DEPENDENCY_ERROR_MARKER {
                                         Some(Reply::Error(e.to_string()))
                                     } else {
                                         Some(Reply::Value(
@@ -142,10 +139,12 @@ where
                                         let cell = Cell::new_with_expr(cell_expr, value);
                                         sheet.evaluate_cell(cell_identifier, cell, dependencies);
                                     }
-                                    Err(e) => {
+                                    Err(_) => {
                                         sheet.set(
                                             cell_identifier,
-                                            Cell::new(&CellValue::Error(format!("{:?}", e))),
+                                            Cell::new(&CellValue::Error(
+                                                DEPENDENCY_ERROR_MARKER.to_string(),
+                                            )),
                                         );
                                     }
                                 }
